@@ -7,7 +7,9 @@ import {
   BookOpen, 
   Sparkles, 
   CheckCircle2, 
-  Globe 
+  Globe,
+  ArrowLeft,
+  ArrowUp
 } from 'lucide-react';
 import { LanguageOffer, SkillsTrainingModule, LanguageArticle, Page } from '../types';
 
@@ -16,19 +18,33 @@ interface SubjectsLanguagesPageProps {
   trainingModules: SkillsTrainingModule[];
   articles: LanguageArticle[];
   page?: Page;
+  onBackToHome?: () => void;
 }
 
 export function SubjectsLanguagesPage({ 
   languages, 
   trainingModules, 
   articles, 
-  page 
+  page,
+  onBackToHome
 }: SubjectsLanguagesPageProps) {
   const [selectedArticleId, setSelectedArticleId] = useState<string>(articles[0]?.id || '');
   const activeArticle = articles.find(a => a.id === selectedArticleId) || articles[0];
 
   return (
     <div className="py-6 space-y-12">
+      {/* Top Navigation */}
+      {onBackToHome && (
+        <div>
+          <button
+            onClick={onBackToHome}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Home
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-4">
@@ -226,6 +242,19 @@ export function SubjectsLanguagesPage({
           </div>
         </section>
       )}
+
+      {/* Back to Top */}
+      <div className="flex justify-center pt-4 pb-4">
+        <button
+          onClick={() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+          }}
+          className="px-5 py-2.5 rounded-2xl neu-card text-xs font-bold text-[#6B7280] hover:text-[#2563EB] flex items-center gap-2 cursor-pointer transition-colors"
+        >
+          <ArrowUp className="w-4 h-4" /> Back to Top
+        </button>
+      </div>
     </div>
   );
 }

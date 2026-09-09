@@ -1,14 +1,27 @@
 import React from 'react';
 import { Page } from '../types';
-import { FileText } from 'lucide-react';
+import { FileText, ArrowLeft, ArrowUp } from 'lucide-react';
 
 interface DynamicPageRendererProps {
   page: Page;
+  onBackToHome?: () => void;
 }
 
-export function DynamicPageRenderer({ page }: DynamicPageRendererProps) {
+export function DynamicPageRenderer({ page, onBackToHome }: DynamicPageRendererProps) {
   return (
-    <section id={page.id} className="py-8 space-y-8">
+    <section id={page.id} className="py-6 space-y-8">
+      {/* Top Return to Home */}
+      {onBackToHome && (
+        <div>
+          <button
+            onClick={onBackToHome}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Home
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-4">
@@ -49,6 +62,19 @@ export function DynamicPageRenderer({ page }: DynamicPageRendererProps) {
           ))}
         </div>
       )}
+
+      {/* Back to Top */}
+      <div className="flex justify-center pt-4 pb-4">
+        <button
+          onClick={() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+          }}
+          className="px-5 py-2.5 rounded-2xl neu-card text-xs font-bold text-[#6B7280] hover:text-[#2563EB] flex items-center gap-2 cursor-pointer transition-colors"
+        >
+          <ArrowUp className="w-4 h-4" /> Back to Top
+        </button>
+      </div>
     </section>
   );
 }

@@ -11,7 +11,7 @@ import { DynamicPageRenderer } from './components/DynamicPageRenderer';
 import { AboutUsPage } from './components/AboutUsPage';
 import { SubjectsLanguagesPage } from './components/SubjectsLanguagesPage';
 import { GoalsMissionPage } from './components/GoalsMissionPage';
-import { Languages, Compass, ArrowRight, Phone, MapPin, Sparkles } from 'lucide-react';
+import { Languages, Compass, ArrowRight, Phone, MapPin, Sparkles, ArrowUp } from 'lucide-react';
 import { 
   initialLanguages, 
   initialTrainingModules, 
@@ -21,6 +21,28 @@ import {
   initialAboutUsData 
 } from './data/initialData';
 
+// Sticky LocalStorage state helper to persist all Admin edits and deletions
+function useStickyState<T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn('Could not persist to localStorage:', e);
+    }
+  }, [key, value]);
+
+  return [value, setValue];
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -28,22 +50,22 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   
-  const [logoUrl, setLogoUrl] = useState('https://i.ibb.co/CshZjp8L/erasebg-transformed-3.png');
-  const [heroImageUrl, setHeroImageUrl] = useState('');
-  const [heroTopTitle, setHeroTopTitle] = useState("Let's Learn Institute");
-  const [heroTopSubtitle, setHeroTopSubtitle] = useState('World Languages, International Exam Preparation & Global Study Guidance in Duhok.');
-  const [heroOverlayTitle, setHeroOverlayTitle] = useState('');
-  const [heroOverlaySubtitle, setHeroOverlaySubtitle] = useState('');
-  const [heroBottomTitle, setHeroBottomTitle] = useState('');
-  const [heroBottomDescription, setHeroBottomDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useStickyState('ll_logo_url', 'https://i.ibb.co/CshZjp8L/erasebg-transformed-3.png');
+  const [heroImageUrl, setHeroImageUrl] = useStickyState('ll_hero_image_url', '');
+  const [heroTopTitle, setHeroTopTitle] = useStickyState('ll_hero_top_title', "Let's Learn Institute");
+  const [heroTopSubtitle, setHeroTopSubtitle] = useStickyState('ll_hero_top_subtitle', 'World Languages, International Exam Preparation & Global Study Guidance in Duhok.');
+  const [heroOverlayTitle, setHeroOverlayTitle] = useStickyState('ll_hero_overlay_title', '');
+  const [heroOverlaySubtitle, setHeroOverlaySubtitle] = useStickyState('ll_hero_overlay_subtitle', '');
+  const [heroBottomTitle, setHeroBottomTitle] = useStickyState('ll_hero_bottom_title', '');
+  const [heroBottomDescription, setHeroBottomDescription] = useStickyState('ll_hero_bottom_desc', '');
 
-  // Extended page data state
-  const [languages, setLanguages] = useState<LanguageOffer[]>(initialLanguages);
-  const [trainingModules, setTrainingModules] = useState<SkillsTrainingModule[]>(initialTrainingModules);
-  const [articles, setArticles] = useState<LanguageArticle[]>(initialArticles);
-  const [slogans, setSlogans] = useState<MissionSlogan[]>(initialSlogans);
-  const [pillars, setPillars] = useState<MissionPillar[]>(initialPillars);
-  const [aboutData, setAboutData] = useState<AboutUsData>(initialAboutUsData);
+  // Extended page data state with persistent storage
+  const [languages, setLanguages] = useStickyState<LanguageOffer[]>('ll_languages', initialLanguages);
+  const [trainingModules, setTrainingModules] = useStickyState<SkillsTrainingModule[]>('ll_training_modules', initialTrainingModules);
+  const [articles, setArticles] = useStickyState<LanguageArticle[]>('ll_articles', initialArticles);
+  const [slogans, setSlogans] = useStickyState<MissionSlogan[]>('ll_slogans', initialSlogans);
+  const [pillars, setPillars] = useStickyState<MissionPillar[]>('ll_pillars', initialPillars);
+  const [aboutData, setAboutData] = useStickyState<AboutUsData>('ll_about_data', initialAboutUsData);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,16 +76,16 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
   
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [newsItems, setNewsItems] = useStickyState<NewsItem[]>('ll_news_items', []);
   
-  const [academicDepartments, setAcademicDepartments] = useState<AcademicDepartment[]>([]);
+  const [academicDepartments, setAcademicDepartments] = useStickyState<AcademicDepartment[]>('ll_academic_departments', []);
 
-  const [sidebarItems, setSidebarItems] = useState([
+  const [sidebarItems, setSidebarItems] = useStickyState('ll_sidebar_items', [
     { name: 'Home' },
     { name: 'About' },
   ]);
 
-  const [pages, setPages] = useState<Page[]>([
+  const [pages, setPages] = useStickyState<Page[]>('ll_pages', [
     {
       id: 'subjects-languages',
       name: 'Subjects & Languages',
@@ -113,8 +135,48 @@ export default function App() {
     },
   ]);
   
-  const [homeSections, setHomeSections] = useState<PageSection[]>([]);
+  const [homeSections, setHomeSections] = useStickyState<PageSection[]>('ll_home_sections', []);
   const [currentPageId, setCurrentPageId] = useState<string>('home');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Robust multi-pass scroll to top function
+  const scrollToTop = (smooth = false) => {
+    const behavior = smooth ? 'smooth' : 'instant';
+    window.scrollTo({ top: 0, left: 0, behavior });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior });
+    document.body.scrollTo({ top: 0, left: 0, behavior });
+    
+    // Additional frame triggers to ensure newly mounted DOM components render at top
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 15);
+  };
+
+  // Always reset scroll position to top whenever page navigation occurs
+  useEffect(() => {
+    scrollToTop(false);
+  }, [currentPageId]);
+
+  // Track window scroll position for floating back-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 250);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navigateToPage = (pageId: string) => {
+    setCurrentPageId(pageId);
+    scrollToTop(false);
+  };
 
   const handleYearClick = () => {
     const newCount = clickCount + 1;
@@ -150,7 +212,10 @@ export default function App() {
   if (isAdminOpen) {
     return (
       <AdminPanel 
-        onClose={() => setIsAdminOpen(false)} 
+        onClose={() => {
+          setIsAdminOpen(false);
+          scrollToTop(false);
+        }} 
         logoUrl={logoUrl} setLogoUrl={setLogoUrl} 
         heroImageUrl={heroImageUrl} setHeroImageUrl={setHeroImageUrl}
         heroTopTitle={heroTopTitle} setHeroTopTitle={setHeroTopTitle}
@@ -163,7 +228,7 @@ export default function App() {
         academicDepartments={academicDepartments} setAcademicDepartments={setAcademicDepartments}
         sidebarItems={sidebarItems} setSidebarItems={setSidebarItems}
         pages={pages} setPages={setPages} 
-        currentPageId={currentPageId} setCurrentPageId={setCurrentPageId}
+        currentPageId={currentPageId} setCurrentPageId={navigateToPage}
         homeSections={homeSections} setHomeSections={setHomeSections}
         languages={languages} setLanguages={setLanguages}
         trainingModules={trainingModules} setTrainingModules={setTrainingModules}
@@ -195,14 +260,14 @@ export default function App() {
         sidebarItems={sidebarItems} 
         pages={pages} 
         currentPageId={currentPageId} 
-        setCurrentPageId={setCurrentPageId} 
+        setCurrentPageId={navigateToPage} 
       />
       <div className="flex-1 flex flex-col min-w-0">
         <SchoolHeader 
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
           isOpen={isSidebarOpen}
           logoUrl={logoUrl} 
-          onLogoClick={() => setCurrentPageId('home')} 
+          onLogoClick={() => navigateToPage('home')} 
         />
         
         {/* Main Content Viewport */}
@@ -217,7 +282,7 @@ export default function App() {
                 overlaySubtitle={heroOverlaySubtitle}
                 bottomTitle={heroBottomTitle}
                 bottomDescription={heroBottomDescription}
-                onNavigate={(pageId) => setCurrentPageId(pageId)}
+                onNavigate={(pageId) => navigateToPage(pageId)}
               />
 
               {/* Core Offerings Overview */}
@@ -236,7 +301,7 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Subjects & Languages Card */}
                   <div 
-                    onClick={() => setCurrentPageId('subjects-languages')}
+                    onClick={() => navigateToPage('subjects-languages')}
                     className="p-6 sm:p-8 rounded-3xl neu-card flex flex-col justify-between space-y-4 hover:shadow-[-6px_-6px_16px_rgba(255,255,255,0.8),6px_6px_16px_rgba(163,177,198,0.6)] transition-all cursor-pointer group"
                   >
                     <div className="space-y-3">
@@ -262,7 +327,7 @@ export default function App() {
 
                   {/* Goals & Mission Card */}
                   <div 
-                    onClick={() => setCurrentPageId('goals-mission')}
+                    onClick={() => navigateToPage('goals-mission')}
                     className="p-6 sm:p-8 rounded-3xl neu-card flex flex-col justify-between space-y-4 hover:shadow-[-6px_-6px_16px_rgba(255,255,255,0.8),6px_6px_16px_rgba(163,177,198,0.6)] transition-all cursor-pointer group"
                   >
                     <div className="space-y-3">
@@ -310,7 +375,7 @@ export default function App() {
                 </div>
 
                 <button
-                  onClick={() => setCurrentPageId('about')}
+                  onClick={() => navigateToPage('about')}
                   className="px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors cursor-pointer shrink-0 shadow-sm"
                 >
                   Contact & Location Details
@@ -367,6 +432,7 @@ export default function App() {
             <AboutUsPage 
               logoUrl={logoUrl} 
               aboutData={aboutData}
+              onBackToHome={() => navigateToPage('home')}
             />
           ) : currentPageId === 'subjects-languages' ? (
             <SubjectsLanguagesPage 
@@ -374,23 +440,59 @@ export default function App() {
               trainingModules={trainingModules}
               articles={articles}
               page={pages.find(p => p.id === 'subjects-languages')}
+              onBackToHome={() => navigateToPage('home')}
             />
           ) : currentPageId === 'goals-mission' ? (
             <GoalsMissionPage 
               slogans={slogans}
               pillars={pillars}
               page={pages.find(p => p.id === 'goals-mission')}
+              onBackToHome={() => navigateToPage('home')}
             />
           ) : currentPageId === 'news' ? (
-            <div className="py-6"><NewsSection newsItems={newsItems} /></div>
+            <div className="py-6 space-y-6">
+              <button 
+                onClick={() => navigateToPage('home')}
+                className="px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer inline-flex items-center gap-2"
+              >
+                ← Return to Home
+              </button>
+              <NewsSection newsItems={newsItems} />
+            </div>
           ) : currentPageId === 'academics' ? (
-            <div className="py-6"><AcademicsSection academicDepartments={academicDepartments} /></div>
+            <div className="py-6 space-y-6">
+              <button 
+                onClick={() => navigateToPage('home')}
+                className="px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer inline-flex items-center gap-2"
+              >
+                ← Return to Home
+              </button>
+              <AcademicsSection academicDepartments={academicDepartments} />
+            </div>
           ) : (
             <DynamicPageRenderer 
               page={pages.find(p => p.id === currentPageId) || { id: currentPageId, name: 'Page', sections: [] }} 
+              onBackToHome={() => navigateToPage('home')}
             />
           )}
         </main>
+
+        {/* Floating Scroll to Top button */}
+        <AnimatePresence>
+          {showScrollTop && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 12 }}
+              onClick={() => scrollToTop(true)}
+              className="fixed bottom-6 right-6 z-40 p-3.5 rounded-2xl bg-[#2563EB] text-white shadow-xl hover:bg-[#1D4ED8] hover:scale-105 transition-all cursor-pointer flex items-center justify-center border border-white/20"
+              title="Scroll to top"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Tactile Neumorphic Footer */}
         <footer className="w-full bg-[#E0E5EC] py-10 px-4 sm:px-8 border-t border-transparent shadow-[0_-4px_12px_rgba(163,177,198,0.2)]">

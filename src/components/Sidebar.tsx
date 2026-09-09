@@ -67,6 +67,9 @@ export function Sidebar({ isOpen, onClose, sidebarItems, pages, currentPageId, s
                   key={item.name}
                   onClick={() => {
                     setCurrentPageId(item.name.toLowerCase());
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
                     onClose();
                   }}
                   className={`flex items-center gap-3.5 p-3.5 rounded-2xl transition-all w-full text-left cursor-pointer ${
@@ -95,6 +98,9 @@ export function Sidebar({ isOpen, onClose, sidebarItems, pages, currentPageId, s
                       key={page.id}
                       onClick={() => {
                         setCurrentPageId(page.id);
+                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
                         onClose();
                       }}
                       className={`flex items-center gap-3.5 p-3.5 rounded-2xl transition-all w-full text-left cursor-pointer ${
