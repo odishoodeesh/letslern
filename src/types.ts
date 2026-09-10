@@ -77,3 +77,11 @@ export type AboutUsData = {
   instagramUrl: string;
   mapEmbedUrl: string;
 };
+
+export type BucketImage = {
+  name: string;
+  path: string;
+  url: string;
+  size: number;
+  updatedAt: string;
+};

@@ -14,7 +14,7 @@ interface HeroSectionProps {
 
 export function HeroSection({
   heroImageUrl,
-  topTitle = "Let's Learn Institute",
+  topTitle = "Let's Lern Institute",
   topSubtitle = 'Premier Language Training, Exam Preparation & Global Academic Guidance in Duhok.',
   overlayTitle = '',
   overlaySubtitle = '',
@@ -51,7 +51,7 @@ export function HeroSection({
           <div className="relative w-full h-80 sm:h-96 md:h-[440px] overflow-hidden">
             <img
               src={heroImageUrl}
-              alt="Let's Learn Institute"
+              alt="Let's Lern Institute"
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
@@ -73,67 +73,34 @@ export function HeroSection({
         ) : (
           /* Clean tactile brand banner when no image is uploaded */
           <div className="p-8 sm:p-12 md:p-14 bg-gradient-to-br from-[#E0E5EC] via-[#E8EDF4] to-[#DEE4ED]">
-            <div className="max-w-3xl space-y-6">
+            <div className="max-w-3xl space-y-4">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB]">
                 <Award className="w-4 h-4" />
-                <span>Certified Language & Study Abroad Center • Duhok</span>
+                <span>Let's Lern Institute • Duhok</span>
               </div>
 
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#3D4852] tracking-tight leading-tight">
-                Empowering your academic & international future
+                Welcome to Let's Lern
               </h2>
 
               <p className="text-base text-[#6B7280] leading-relaxed">
-                We provide accredited language learning, rigorous international exam preparation (IELTS, TOEFL, Goethe, TÖMER, DELF), university enrollment support, and sworn translations.
+                Dedicated to academic growth, certified language education, and global learning opportunities in Duhok.
               </p>
 
-              {/* Core Feature Highlights */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl neu-inset">
-                  <Languages className="w-5 h-5 text-[#2563EB] shrink-0" />
-                  <span className="text-xs sm:text-sm text-[#3D4852] font-semibold">
-                    6 Languages: EN, DE, AR, TR, FR, NL
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl neu-inset">
-                  <GraduationCap className="w-5 h-5 text-[#2563EB] shrink-0" />
-                  <span className="text-xs sm:text-sm text-[#3D4852] font-semibold">
-                    Exam Prep: IELTS, Goethe, TOEFL, TÖMER
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl neu-inset">
-                  <Compass className="w-5 h-5 text-[#2563EB] shrink-0" />
-                  <span className="text-xs sm:text-sm text-[#3D4852] font-semibold">
-                    Global University & Visa Guidance
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl neu-inset">
-                  <Globe className="w-5 h-5 text-[#2563EB] shrink-0" />
-                  <span className="text-xs sm:text-sm text-[#3D4852] font-semibold">
-                    Certified Academic & Sworn Translations
-                  </span>
-                </div>
-              </div>
-
               {onNavigate && (
-                <div className="flex flex-wrap gap-3 pt-4">
+                <div className="flex flex-wrap gap-3 pt-2">
                   <button
-                    onClick={() => onNavigate('subjects-languages')}
+                    onClick={() => onNavigate('about')}
                     className="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors cursor-pointer shadow-sm"
                   >
-                    Explore Subjects & Languages
-                  </button>
-                  <button
-                    onClick={() => onNavigate('goals-mission')}
-                    className="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold neu-card text-[#3D4852] hover:text-[#2563EB] transition-colors cursor-pointer"
-                  >
-                    View Goals & Mission
+                    About & Contact Details
                   </button>
                 </div>
               )}
             </div>
           </div>
         )}
+
 
         {hasBottomContent && (
           <div className="p-8 border-t border-[#E0E5EC]">

@@ -1,5 +1,5 @@
 {
-  "name": "Let's Learn",
+  "name": "Let's Lern",
   "description": "Educational academy platform offering accredited world languages, exam prep, study abroad guidance, and skill empowerment.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

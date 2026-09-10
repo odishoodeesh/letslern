@@ -369,7 +369,7 @@ CREATE POLICY "Admin All Inquiries" ON public.student_inquiries FOR ALL USING (t
 
 
 -- =============================================================================
--- PART 4: SEED DATA (LET'S LEARN INSTITUTE - DUHOK)
+-- PART 4: SEED DATA (LET'S LERN - DUHOK INITIAL STATE)
 -- =============================================================================
 
 -- 1. General Institute Settings
@@ -377,26 +377,24 @@ INSERT INTO public.institute_settings (
     id, institution_name, logo_url, hero_top_title, hero_top_subtitle
 ) VALUES (
     'default',
-    'Let''s Learn Institute',
+    'Let''s Lern',
     'https://i.ibb.co/CshZjp8L/erasebg-transformed-3.png',
-    'Let''s Learn Institute',
-    'World Languages, International Exam Preparation & Global Study Guidance in Duhok.'
+    'Let''s Lern Institute',
+    ''
 ) ON CONFLICT (id) DO UPDATE SET
     institution_name = EXCLUDED.institution_name,
-    hero_top_title = EXCLUDED.hero_top_title,
-    hero_top_subtitle = EXCLUDED.hero_top_subtitle;
+    hero_top_title = EXCLUDED.hero_top_title;
 
 -- 2. About Us & Phone Numbers (Duhok)
 INSERT INTO public.about_us (
     id, intro, address, instagram_url, map_embed_url
 ) VALUES (
     'default',
-    'Welcome to our institute. We are located in Duhok.',
+    '',
     'Duhok, Kurdistan Region',
     'https://www.instagram.com/letslern.institute/',
     'https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3192.671279680684!2d42.945425!3d36.850348!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMzbCsDUxJzAxLjMiTiA0MsKwNTYnNDMuNSJF!5e0!3m2!1sen!2siq!4v1788882559231!5m2!1sen!2siq'
 ) ON CONFLICT (id) DO UPDATE SET
-    intro = EXCLUDED.intro,
     address = EXCLUDED.address,
     instagram_url = EXCLUDED.instagram_url,
     map_embed_url = EXCLUDED.map_embed_url;
@@ -414,150 +412,8 @@ VALUES
     ('About', 2)
 ON CONFLICT DO NOTHING;
 
--- 4. Core Pages
-INSERT INTO public.pages (id, name, display_order)
-VALUES 
-    ('subjects-languages', 'Subjects & Languages', 1),
-    ('goals-mission', 'Goals & Mission', 2)
-ON CONFLICT (id) DO NOTHING;
-
--- 5. Sections for 'Subjects & Languages'
-INSERT INTO public.page_sections (id, page_id, title, content, display_order)
-VALUES 
-    ('sl-1', 'subjects-languages', 
-     'Languages: English, German, Arabic, Turkish, French, and Dutch', 
-     'Accredited multi-level language courses spanning A1 foundational to C2 professional fluency, academic research, and business mastery.', 1),
-    ('sl-2', 'subjects-languages', 
-     'Exam Preparation & Career Skills', 
-     'Targeted simulation courses for IELTS, TOEFL, Goethe-Zertifikat, DELF, and TÖMER alongside professional CV workshops and mock interview simulations.', 2),
-    ('sl-3', 'subjects-languages', 
-     'Translation & Consultation Services', 
-     'Official certified document and transcript translation services coupled with individual international study counseling and degree verification.', 3),
-    ('sl-4', 'subjects-languages', 
-     'Specialized Training & Language Services', 
-     'Bespoke corporate workshops, technical terminology bootcamps, and flexible 1-on-1 language coaching.', 4)
-ON CONFLICT (id) DO NOTHING;
-
--- 6. Sections for 'Goals & Mission'
-INSERT INTO public.page_sections (id, page_id, title, content, display_order)
-VALUES 
-    ('gm-1', 'goals-mission', 
-     'Study Abroad & Global Guidance', 
-     'Assisting students with university enrollment, visa/admission support, international guidance, and career growth opportunities.', 1),
-    ('gm-2', 'goals-mission', 
-     'Skill Development & Empowerment', 
-     'Slogans highlight "Unlock your potential," "Build your future," and "Small Steps. Big Futures." We foster self-efficacy, critical thinking, and career readiness.', 2),
-    ('gm-3', 'goals-mission', 
-     'Multilingual Fluency', 
-     'Expanding academic, professional, and personal opportunities through language acquisition and cross-cultural empowerment.', 3)
-ON CONFLICT (id) DO NOTHING;
-
--- 7. Core 6 Languages (English, German, Arabic, Turkish, French, Dutch)
-INSERT INTO public.languages (id, name, native_name, code, description, levels, focus_areas, display_order)
-VALUES 
-    ('lang-1', 'English', 'English', 'EN', 
-     'Comprehensive general, academic, and business English with focus on fluency and global communication.', 
-     'A1 to C2 & IELTS/TOEFL', 
-     ARRAY['Conversation', 'Academic Writing', 'Exam Prep', 'Business English'], 1),
-    
-    ('lang-2', 'German', 'Deutsch', 'DE', 
-     'Structured German training tailored for university studies in Germany, Austria, and healthcare careers.', 
-     'A1 to C1 & Goethe-Zertifikat', 
-     ARRAY['Grammar Mastery', 'Studienkolleg Prep', 'Medical German', 'TestDaF'], 2),
-    
-    ('lang-3', 'Arabic', 'العربية', 'AR', 
-     'Modern Standard Arabic (MSA) alongside communicative dialects with rich phonetics and syntactic structure.', 
-     'Beginner to Advanced', 
-     ARRAY['MSA Standard', 'Reading & Script', 'Media & Literature', 'Business Arabic'], 3),
-    
-    ('lang-4', 'Turkish', 'Türkçe', 'TR', 
-     'Immersive Turkish language courses designed for university admission, daily living, and commerce in Turkey.', 
-     'A1 to C1 & TÖMER Prep', 
-     ARRAY['Vowel Harmony & Suffixes', 'TÖMER Exam', 'Everyday Fluency', 'Commercial Turkish'], 4),
-    
-    ('lang-5', 'French', 'Français', 'FR', 
-     'Elegant French instruction covering spoken interaction, literary nuance, and official certification.', 
-     'A1 to B2 & DELF/DALF', 
-     ARRAY['Pronunciation & Listening', 'DELF B2 Preparation', 'Francophone Culture', 'Academic French'], 5),
-    
-    ('lang-6', 'Dutch', 'Nederlands', 'NL', 
-     'Practical and conversational Dutch geared towards study programs in the Netherlands and civic integration.', 
-     'A1 to B2 & Inburgering', 
-     ARRAY['Civic Integration (Inburgering)', 'NT2 Exam Prep', 'Daily Interaction', 'Workplace Dutch'], 6)
-ON CONFLICT (id) DO NOTHING;
-
--- 8. Academic & Skills Training Modules
-INSERT INTO public.training_modules (id, title, description, points, display_order)
-VALUES 
-    ('train-1', 'Exam Preparation & Career Skills', 
-     'Targeted simulation courses for international exams including IELTS, TOEFL, Goethe-Zertifikat (B1-C1), DELF, and TÖMER. Master academic writing, public speaking, and professional interview techniques.',
-     ARRAY[
-        'Standardized Test Strategies & Timed Practice',
-        'Professional CV, Resume & Cover Letter Crafting',
-        'Mock University & Consular Interviews'
-     ], 1),
-    
-    ('train-2', 'Translation & Consultation', 
-     'Certified document and transcript translation recognized by international admissions offices. In-depth 1-on-1 consultations for degree verification, equivalency processes, and credit transfers.',
-     ARRAY[
-        'Academic Records, Transcripts & Diplomas',
-        'Legal Statements & Certified Sworn Translations',
-        'University Matching & Admission Consultations'
-     ], 2),
-    
-    ('train-3', 'Specialized Training & Language Services', 
-     'Bespoke language solutions for businesses, medical professionals, engineers, and researchers. Flexible hybrid schedules and custom curriculum pacing.',
-     ARRAY[
-        'Corporate & Institutional Team Workshops',
-        'Medical, Technical & Engineering Lexicons',
-        '1-on-1 Executive Fluency Coaching'
-     ], 3)
-ON CONFLICT (id) DO NOTHING;
-
--- 9. Strategic Mission Slogans
-INSERT INTO public.mission_slogans (id, quote, context, description, display_order)
-VALUES 
-    ('slogan-1', 'Unlock your potential.', 'Discovery & Self-Belief', 
-     'Every student possesses untapped capabilities waiting to be awakened with the right guidance and academic rigor.', 1),
-    
-    ('slogan-2', 'Build your future.', 'Action & Architecture', 
-     'We do not wait for the future; we construct it step by step through disciplined study, language fluency, and real-world skills.', 2),
-    
-    ('slogan-3', 'Small Steps. Big Futures.', 'Perseverance & Growth', 
-     'Consistent daily mastery of vocabulary, concepts, and interview practice yields life-altering international opportunities.', 3)
-ON CONFLICT (id) DO NOTHING;
-
--- 10. Strategic Mission Pillars
-INSERT INTO public.mission_pillars (id, title, badge, description, points, display_order)
-VALUES 
-    ('pillar-1', 'Study Abroad & Global Guidance', 'International Pathways',
-     'Assisting students with university enrollment, visa/admission support, international guidance, and career growth opportunities.',
-     ARRAY[
-        'Personalized university matching and program selection across Europe, North America, and worldwide.',
-        'End-to-end assistance with university enrollment, admissions essays, portfolio submissions, and document legalization.',
-        'Rigorous visa consultation and mock consular interview simulations.',
-        'Post-arrival orientation, international student accommodation guidance, and long-term career roadmaps.'
-     ], 1),
-    
-    ('pillar-2', 'Skill Development & Empowerment', 'Holistic Growth',
-     'Slogans highlight "Unlock your potential," "Build your future," and "Small Steps. Big Futures." We foster self-efficacy, critical thinking, and career readiness.',
-     ARRAY[
-        'Critical thinking, analytical reasoning, and international exam strategies (IELTS, TOEFL, Goethe, TÖMER).',
-        'Executive communication, professional presentation, and CV tailoring for competitive global markets.',
-        'Active mentorship pairing students with alumni studying and working internationally.',
-        'Cultivating self-efficacy, academic autonomy, and cross-cultural adaptability.'
-     ], 2),
-    
-    ('pillar-3', 'Multilingual Fluency', 'Cultural Bridges',
-     'Expanding academic, professional, and personal opportunities through foreign language acquisition and cultural immersion.',
-     ARRAY[
-        'Comprehensive programs across 6 core languages: English, German, Arabic, Turkish, French, and Dutch.',
-        'Bridging linguistic barriers to unlock international scholarships, internships, and global research.',
-        'Immersive speaking clubs and cultural exchange seminars designed to build genuine speaking confidence.',
-        'Empowering students to think, negotiate, and thrive in multilingual academic environments.'
-     ], 3)
-ON CONFLICT (id) DO NOTHING;
-
+-- All dummy mock courses, languages, slogans, and pillars have been removed to keep the database ready for real data.
 -- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
+

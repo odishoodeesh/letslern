@@ -1,4 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { 
+  BucketImage, 
+  Page, 
+  PageSection, 
+  AboutUsData, 
+  LanguageOffer, 
+  SkillsTrainingModule, 
+  NewsItem, 
+  AcademicDepartment 
+} from '../types';
 
 // Configuration from environment variables with fallback to the user's project credentials
 const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env || {};
@@ -16,18 +26,61 @@ export const STORAGE_BUCKET =
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /**
- * Upload an image file directly to the Supabase Storage Bucket
- * Returns the public URL of the uploaded image
+ * Extracts storage object path from a Supabase public URL.
+ * Example: "https://wqjwacmufuzsjwuvucqo.supabase.co/storage/v1/object/public/bucket/uploads/123.jpg" -> "uploads/123.jpg"
  */
-export async function uploadImageToSupabase(file: File, folder = 'uploads'): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+export function extractStoragePath(urlOrPath: string): string | null {
+  if (!urlOrPath) return null;
+  if (!urlOrPath.startsWith('http://') && !urlOrPath.startsWith('https://')) {
+    return urlOrPath.replace(/^\/+/, '');
+  }
+
+  const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+  const index = urlOrPath.indexOf(marker);
+  if (index !== -1) {
+    return decodeURIComponent(urlOrPath.substring(index + marker.length));
+  }
+
+  // Generic bucket fallback match
+  const match = urlOrPath.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1]);
+  }
+
+  return null;
+}
+
+/**
+ * Upload an image file directly to the Supabase Storage Bucket.
+ * Optionally deletes previous image from the bucket to prevent wasting storage.
+ * Returns the public URL of the uploaded image.
+ */
+export async function uploadImageToSupabase(
+  file: File, 
+  folder = 'uploads', 
+  oldUrlToDelete?: string
+): Promise<string> {
+  // If an old image was previously uploaded to our bucket, remove it to save storage
+  if (oldUrlToDelete) {
+    try {
+      await deleteImageFromSupabase(oldUrlToDelete);
+    } catch (cleanupErr) {
+      console.warn('Could not clean up old image from bucket:', cleanupErr);
+    }
+  }
+
+  const rawExt = file.name.split('.').pop() || 'jpg';
+  const cleanExt = rawExt.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const timestamp = Date.now();
+  const rand = Math.random().toString(36).substring(2, 9);
+  const fileName = `${folder}/${timestamp}_${rand}.${cleanExt}`;
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
       upsert: false,
+      contentType: file.type || undefined,
     });
 
   if (error) {
@@ -41,4 +94,436 @@ export async function uploadImageToSupabase(file: File, folder = 'uploads'): Pro
     .getPublicUrl(data.path);
 
   return urlData.publicUrl;
+}
+
+/**
+ * Permanently deletes an image file from the Supabase Storage Bucket
+ * to prevent taking storage for nothing.
+ */
+export async function deleteImageFromSupabase(urlOrPath: string): Promise<boolean> {
+  const path = extractStoragePath(urlOrPath);
+  if (!path) {
+    console.warn('Cannot delete from bucket: invalid or external URL:', urlOrPath);
+    return false;
+  }
+
+  try {
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove([path]);
+
+    if (error) {
+      console.error('Supabase storage delete error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to delete image from Supabase storage:', err);
+    return false;
+  }
+}
+
+/**
+ * Lists all images currently in the Supabase storage bucket folder
+ * so the user can inspect, pick, or clean up unused files.
+ */
+export async function listStorageBucketImages(folder = 'uploads'): Promise<BucketImage[]> {
+  try {
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(folder, {
+        limit: 100,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+
+    if (error || !data) {
+      console.error('Error listing bucket files:', error);
+      return [];
+    }
+
+    return data
+      .filter(item => item.name && !item.name.startsWith('.'))
+      .map(item => {
+        const path = `${folder}/${item.name}`;
+        const { data: urlData } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(path);
+
+        return {
+          name: item.name,
+          path,
+          url: urlData.publicUrl,
+          size: item.metadata?.size || 0,
+          updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+        };
+      });
+  } catch (err) {
+    console.error('Failed to list images from Supabase storage:', err);
+    return [];
+  }
+}
+
+/* ==========================================================================
+   DATABASE CRUD FUNCTIONS
+   ========================================================================== */
+
+export interface InstituteSettingsRecord {
+  id: string;
+  institution_name: string;
+  logo_url: string | null;
+  hero_image_url: string | null;
+  hero_top_title: string;
+  hero_top_subtitle: string;
+  hero_overlay_title: string;
+  hero_overlay_subtitle: string;
+  hero_bottom_title: string;
+  hero_bottom_description: string;
+}
+
+/**
+ * Fetches general institute settings (branding & hero configuration)
+ */
+export async function fetchInstituteSettings(): Promise<InstituteSettingsRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from('institute_settings')
+      .select('*')
+      .eq('id', 'default')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Could not fetch institute settings:', error.message);
+      return null;
+    }
+    return data as InstituteSettingsRecord;
+  } catch (err) {
+    console.warn('Fetch institute settings exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Saves/updates institute branding and hero settings in Supabase
+ */
+export async function saveInstituteSettings(
+  settings: Partial<InstituteSettingsRecord>
+): Promise<boolean> {
+  try {
+    const payload = {
+      ...settings,
+      id: 'default',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('institute_settings')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving institute settings to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Exception saving institute settings:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches About Us information and phone numbers
+ */
+export async function fetchAboutUsData(): Promise<AboutUsData | null> {
+  try {
+    const { data, error } = await supabase
+      .from('about_us')
+      .select('*, about_us_phones(*)')
+      .eq('id', 'default')
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const phones = (data.about_us_phones || [])
+      .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+      .map((p: any) => p.phone_number);
+
+    return {
+      intro: data.intro || '',
+      address: data.address || 'Duhok, Kurdistan Region',
+      instagramUrl: data.instagram_url || 'https://www.instagram.com/letslern.institute/',
+      mapEmbedUrl: data.map_embed_url || '',
+      phoneNumbers: phones.length > 0 ? phones : ['07500062119', '07508423979'],
+    };
+  } catch (err) {
+    console.warn('Could not fetch About Us data:', err);
+    return null;
+  }
+}
+
+/**
+ * Saves About Us information and phone numbers
+ */
+export async function saveAboutUsData(aboutData: AboutUsData): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('about_us')
+      .upsert({
+        id: 'default',
+        intro: aboutData.intro,
+        address: aboutData.address,
+        instagram_url: aboutData.instagramUrl,
+        map_embed_url: aboutData.mapEmbedUrl,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+    if (error) throw error;
+
+    // Delete existing phones and re-insert
+    await supabase.from('about_us_phones').delete().eq('about_id', 'default');
+    if (aboutData.phoneNumbers && aboutData.phoneNumbers.length > 0) {
+      const phonePayload = aboutData.phoneNumbers.map((num, i) => ({
+        about_id: 'default',
+        phone_number: num,
+        display_order: i + 1,
+      }));
+      await supabase.from('about_us_phones').insert(phonePayload);
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error saving About Us data:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches dynamic pages and their nested sections
+ */
+export async function fetchPagesData(): Promise<Page[]> {
+  try {
+    const { data: pages, error } = await supabase
+      .from('pages')
+      .select('*, page_sections(*)')
+      .order('display_order', { ascending: true });
+
+    if (error || !pages) return [];
+
+    return pages.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      sections: (p.page_sections || [])
+        .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+        .map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          content: s.content,
+          imageUrl: s.image_url || undefined,
+          type: (s.section_type as 'text' | 'schedule') || 'text',
+          scheduleItems: [],
+        })),
+    }));
+  } catch (err) {
+    console.warn('Could not fetch pages data:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists all pages and sections to Supabase
+ */
+export async function savePagesData(pages: Page[]): Promise<boolean> {
+  try {
+    // Delete existing page sections first, then upsert
+    await supabase.from('page_sections').delete().neq('id', '');
+    await supabase.from('pages').delete().neq('id', '');
+
+    if (pages.length === 0) return true;
+
+    const pagePayload = pages.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      display_order: idx + 1,
+    }));
+    await supabase.from('pages').insert(pagePayload);
+
+    const sectionsPayload: any[] = [];
+    pages.forEach((p) => {
+      p.sections.forEach((s, sIdx) => {
+        sectionsPayload.push({
+          id: s.id,
+          page_id: p.id,
+          title: s.title,
+          content: s.content,
+          image_url: s.imageUrl || null,
+          section_type: s.type || 'text',
+          display_order: sIdx + 1,
+        });
+      });
+    });
+
+    if (sectionsPayload.length > 0) {
+      await supabase.from('page_sections').insert(sectionsPayload);
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error saving pages data:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches Home page custom sections
+ */
+export async function fetchHomeSectionsData(): Promise<PageSection[]> {
+  try {
+    const { data, error } = await supabase
+      .from('home_sections')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      content: s.content,
+      imageUrl: s.image_url || undefined,
+      type: (s.section_type as 'text' | 'schedule') || 'text',
+      scheduleItems: [],
+    }));
+  } catch (err) {
+    console.warn('Could not fetch home sections:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists Home page custom sections
+ */
+export async function saveHomeSectionsData(sections: PageSection[]): Promise<boolean> {
+  try {
+    await supabase.from('home_sections').delete().neq('id', '');
+
+    if (sections.length === 0) return true;
+
+    const payload = sections.map((s, idx) => ({
+      id: s.id,
+      title: s.title,
+      content: s.content,
+      image_url: s.imageUrl || null,
+      section_type: s.type || 'text',
+      display_order: idx + 1,
+    }));
+
+    await supabase.from('home_sections').insert(payload);
+    return true;
+  } catch (err) {
+    console.error('Error saving home sections:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches Language Offerings
+ */
+export async function fetchLanguagesData(): Promise<LanguageOffer[]> {
+  try {
+    const { data, error } = await supabase
+      .from('languages')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      native: l.native_name,
+      code: l.code,
+      description: l.description,
+      levels: l.levels,
+      focus: l.focus_areas || [],
+    }));
+  } catch (err) {
+    console.warn('Could not fetch languages:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists Language Offerings
+ */
+export async function saveLanguagesData(languages: LanguageOffer[]): Promise<boolean> {
+  try {
+    await supabase.from('languages').delete().neq('id', '');
+
+    if (languages.length === 0) return true;
+
+    const payload = languages.map((l, idx) => ({
+      id: l.id,
+      name: l.name,
+      native_name: l.native,
+      code: l.code,
+      description: l.description,
+      levels: l.levels,
+      focus_areas: l.focus,
+      display_order: idx + 1,
+    }));
+
+    await supabase.from('languages').insert(payload);
+    return true;
+  } catch (err) {
+    console.error('Error saving languages:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches Training Modules
+ */
+export async function fetchTrainingModulesData(): Promise<SkillsTrainingModule[]> {
+  try {
+    const { data, error } = await supabase
+      .from('training_modules')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      points: m.points || [],
+    }));
+  } catch (err) {
+    console.warn('Could not fetch training modules:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists Training Modules
+ */
+export async function saveTrainingModulesData(modules: SkillsTrainingModule[]): Promise<boolean> {
+  try {
+    await supabase.from('training_modules').delete().neq('id', '');
+
+    if (modules.length === 0) return true;
+
+    const payload = modules.map((m, idx) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      points: m.points,
+      display_order: idx + 1,
+    }));
+
+    await supabase.from('training_modules').insert(payload);
+    return true;
+  } catch (err) {
+    console.error('Error saving training modules:', err);
+    return false;
+  }
 }

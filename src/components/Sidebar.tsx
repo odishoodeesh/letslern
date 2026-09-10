@@ -121,7 +121,7 @@ export function Sidebar({ isOpen, onClose, sidebarItems, pages, currentPageId, s
 
         {/* Footer info in sidebar */}
         <div className="pt-6 mt-6 border-t border-[#D1D5DB] text-center">
-          <p className="text-[11px] font-bold text-[#6B7280]">Let's Learn Academy</p>
+          <p className="text-[11px] font-bold text-[#6B7280]">Let's Lern Academy</p>
           <p className="text-[10px] text-[#9CA3AF]">© {new Date().getFullYear()} All Rights Reserved</p>
         </div>
       </aside>

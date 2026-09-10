@@ -11,7 +11,7 @@ import { DynamicPageRenderer } from './components/DynamicPageRenderer';
 import { AboutUsPage } from './components/AboutUsPage';
 import { SubjectsLanguagesPage } from './components/SubjectsLanguagesPage';
 import { GoalsMissionPage } from './components/GoalsMissionPage';
-import { Languages, Compass, ArrowRight, Phone, MapPin, Sparkles, ArrowUp } from 'lucide-react';
+import { Languages, Compass, ArrowRight, Phone, MapPin, Sparkles } from 'lucide-react';
 import { 
   initialLanguages, 
   initialTrainingModules, 
@@ -20,6 +20,14 @@ import {
   initialPillars, 
   initialAboutUsData 
 } from './data/initialData';
+import { 
+  fetchInstituteSettings, 
+  fetchAboutUsData, 
+  fetchPagesData, 
+  fetchHomeSectionsData, 
+  fetchLanguagesData, 
+  fetchTrainingModulesData 
+} from './lib/supabase';
 
 // Sticky LocalStorage state helper to persist all Admin edits and deletions
 function useStickyState<T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -52,7 +60,7 @@ export default function App() {
   
   const [logoUrl, setLogoUrl] = useStickyState('ll_logo_url', 'https://i.ibb.co/CshZjp8L/erasebg-transformed-3.png');
   const [heroImageUrl, setHeroImageUrl] = useStickyState('ll_hero_image_url', '');
-  const [heroTopTitle, setHeroTopTitle] = useStickyState('ll_hero_top_title', "Let's Learn Institute");
+  const [heroTopTitle, setHeroTopTitle] = useStickyState('ll_hero_top_title', "Let's Lern Institute");
   const [heroTopSubtitle, setHeroTopSubtitle] = useStickyState('ll_hero_top_subtitle', 'World Languages, International Exam Preparation & Global Study Guidance in Duhok.');
   const [heroOverlayTitle, setHeroOverlayTitle] = useStickyState('ll_hero_overlay_title', '');
   const [heroOverlaySubtitle, setHeroOverlaySubtitle] = useStickyState('ll_hero_overlay_subtitle', '');
@@ -66,6 +74,70 @@ export default function App() {
   const [slogans, setSlogans] = useStickyState<MissionSlogan[]>('ll_slogans', initialSlogans);
   const [pillars, setPillars] = useStickyState<MissionPillar[]>('ll_pillars', initialPillars);
   const [aboutData, setAboutData] = useStickyState<AboutUsData>('ll_about_data', initialAboutUsData);
+
+  // Synchronize initial data with Supabase Database (if present)
+  useEffect(() => {
+    let isMounted = true;
+    async function syncFromSupabase() {
+      try {
+        const [settings, about, dbPages, dbHomeSections, dbLanguages, dbTraining] = await Promise.all([
+          fetchInstituteSettings(),
+          fetchAboutUsData(),
+          fetchPagesData(),
+          fetchHomeSectionsData(),
+          fetchLanguagesData(),
+          fetchTrainingModulesData()
+        ]);
+
+        if (!isMounted) return;
+
+        if (settings) {
+          if (settings.logo_url) setLogoUrl(settings.logo_url);
+          if (settings.hero_image_url !== undefined) setHeroImageUrl(settings.hero_image_url || '');
+          if (settings.hero_top_title) setHeroTopTitle(settings.hero_top_title);
+          if (settings.hero_top_subtitle) setHeroTopSubtitle(settings.hero_top_subtitle);
+          if (settings.hero_overlay_title !== undefined) setHeroOverlayTitle(settings.hero_overlay_title || '');
+          if (settings.hero_overlay_subtitle !== undefined) setHeroOverlaySubtitle(settings.hero_overlay_subtitle || '');
+          if (settings.hero_bottom_title !== undefined) setHeroBottomTitle(settings.hero_bottom_title || '');
+          if (settings.hero_bottom_description !== undefined) setHeroBottomDescription(settings.hero_bottom_description || '');
+        }
+
+        if (about) {
+          setAboutData(about);
+        }
+
+        if (dbPages && dbPages.length > 0) {
+          setPages(dbPages);
+        }
+
+        if (dbHomeSections && dbHomeSections.length > 0) {
+          setHomeSections(dbHomeSections);
+        }
+
+        if (dbLanguages && dbLanguages.length > 0) {
+          setLanguages(dbLanguages);
+        }
+
+        if (dbTraining && dbTraining.length > 0) {
+          setTrainingModules(dbTraining);
+        }
+      } catch (err) {
+        console.warn('Initial Supabase sync skipped:', err);
+      }
+    }
+
+    syncFromSupabase();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Auto-migrate previous spelling if present in localStorage
+  useEffect(() => {
+    if (heroTopTitle === "Let's Learn Institute") {
+      setHeroTopTitle("Let's Lern Institute");
+    }
+  }, [heroTopTitle, setHeroTopTitle]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -137,41 +209,25 @@ export default function App() {
   
   const [homeSections, setHomeSections] = useStickyState<PageSection[]>('ll_home_sections', []);
   const [currentPageId, setCurrentPageId] = useState<string>('home');
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
-  // Robust multi-pass scroll to top function
+  // Multi-pass scroll to top on page navigation
   const scrollToTop = (smooth = false) => {
     const behavior = smooth ? 'smooth' : 'instant';
     window.scrollTo({ top: 0, left: 0, behavior });
     document.documentElement.scrollTo({ top: 0, left: 0, behavior });
     document.body.scrollTo({ top: 0, left: 0, behavior });
     
-    // Additional frame triggers to ensure newly mounted DOM components render at top
     requestAnimationFrame(() => {
       window.scrollTo(0, 0);
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
     });
-    setTimeout(() => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }, 15);
   };
 
   // Always reset scroll position to top whenever page navigation occurs
   useEffect(() => {
     scrollToTop(false);
   }, [currentPageId]);
-
-  // Track window scroll position for floating back-to-top button
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 250);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const navigateToPage = (pageId: string) => {
     setCurrentPageId(pageId);
@@ -477,28 +533,11 @@ export default function App() {
           )}
         </main>
 
-        {/* Floating Scroll to Top button */}
-        <AnimatePresence>
-          {showScrollTop && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 12 }}
-              onClick={() => scrollToTop(true)}
-              className="fixed bottom-6 right-6 z-40 p-3.5 rounded-2xl bg-[#2563EB] text-white shadow-xl hover:bg-[#1D4ED8] hover:scale-105 transition-all cursor-pointer flex items-center justify-center border border-white/20"
-              title="Scroll to top"
-              aria-label="Scroll to top"
-            >
-              <ArrowUp className="w-5 h-5" />
-            </motion.button>
-          )}
-        </AnimatePresence>
-
         {/* Tactile Neumorphic Footer */}
         <footer className="w-full bg-[#E0E5EC] py-10 px-4 sm:px-8 border-t border-transparent shadow-[0_-4px_12px_rgba(163,177,198,0.2)]">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="font-display font-extrabold text-sm text-[#3D4852]">
-              Let's Learn
+              Let's Lern
             </p>
             <div className="flex items-center gap-2 text-xs text-[#6B7280] font-semibold">
               <span 
