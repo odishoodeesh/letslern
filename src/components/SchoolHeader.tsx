@@ -1,14 +1,23 @@
 import React from 'react';
 import { Menu, X } from 'lucide-react';
+import { LanguageCode } from '../types';
 
 interface SchoolHeaderProps {
   onToggle: () => void;
   isOpen?: boolean;
   logoUrl: string;
   onLogoClick: () => void;
+  onNewsClick?: () => void;
+  isNewsActive?: boolean;
+  currentLanguage?: LanguageCode;
 }
 
-export function SchoolHeader({ onToggle, isOpen = false, logoUrl, onLogoClick }: SchoolHeaderProps) {
+export function SchoolHeader({ 
+  onToggle, 
+  isOpen = false, 
+  logoUrl, 
+  onLogoClick,
+}: SchoolHeaderProps) {
   const [imgError, setImgError] = React.useState(false);
 
   return (
@@ -43,27 +52,30 @@ export function SchoolHeader({ onToggle, isOpen = false, logoUrl, onLogoClick }:
         </div>
       </div>
       
-      {/* Three lines menu toggle button visible across PC, tablet, and mobile */}
-      <button 
-        onClick={onToggle} 
-        className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center gap-2 ${
-          isOpen 
-            ? 'neu-inset text-[#2563EB] bg-[#E0E5EC]' 
-            : 'neu-extruded text-[#3D4852] hover:text-[#2563EB] bg-[#E0E5EC]'
-        }`}
-        aria-label={isOpen ? "Close sidebar menu" : "Open sidebar menu"}
-        title={isOpen ? "Close menu" : "Open menu"}
-      >
-        {isOpen ? (
-          <X className="w-5 h-5 text-[#2563EB]" />
-        ) : (
-          <Menu className="w-5 h-5 text-[#2563EB]" />
-        )}
-        <span className="text-xs font-bold text-[#3D4852] hidden sm:inline-block">
-          {isOpen ? 'Close' : 'Menu'}
-        </span>
-      </button>
+      {/* Menu Toggle Button */}
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <button 
+          onClick={onToggle} 
+          className={`px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-2xl transition-all cursor-pointer flex items-center gap-2 ${
+            isOpen 
+              ? 'neu-inset text-[#2563EB] bg-[#E0E5EC]' 
+              : 'neu-extruded text-[#3D4852] hover:text-[#2563EB] bg-[#E0E5EC]'
+          }`}
+          aria-label={isOpen ? "Close sidebar menu" : "Open sidebar menu"}
+          title={isOpen ? "Close menu" : "Open menu"}
+        >
+          {isOpen ? (
+            <X className="w-5 h-5 text-[#2563EB]" />
+          ) : (
+            <Menu className="w-5 h-5 text-[#2563EB]" />
+          )}
+          <span className="text-xs font-bold text-[#3D4852]">
+            {isOpen ? 'Close' : 'Menu'}
+          </span>
+        </button>
+      </div>
     </header>
   );
 }
+
 

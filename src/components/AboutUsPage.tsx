@@ -1,14 +1,21 @@
 import React from 'react';
-import { AboutUsData } from '../types';
+import { AboutUsData, LanguageCode } from '../types';
 import { Phone, MapPin, Instagram, Map, Info, ArrowLeft, ArrowUp } from 'lucide-react';
+import { getT } from '../lib/translations';
 
 interface AboutUsPageProps {
   logoUrl: string;
   aboutData: AboutUsData;
   onBackToHome?: () => void;
+  currentLanguage?: LanguageCode;
 }
 
-export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPageProps) {
+export function AboutUsPage({ logoUrl, aboutData, onBackToHome, currentLanguage = 'en' }: AboutUsPageProps) {
+  const t = getT(currentLanguage);
+
+  // If intro is empty or standard default, use localized default
+  const introText = aboutData.intro?.trim() || t.aboutWelcomeDefault;
+
   return (
     <section className="py-6 space-y-6 max-w-4xl mx-auto">
       {onBackToHome && (
@@ -16,7 +23,7 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
           onClick={onBackToHome}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Home
+          <ArrowLeft className="w-4 h-4" /> {t.backToHome.replace('← ', '')}
         </button>
       )}
 
@@ -26,16 +33,16 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
         
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-3">
           <Info className="w-4 h-4" />
-          <span>Academy Information</span>
+          <span>{t.aboutBadge}</span>
         </div>
 
-        <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-[#3D4852] mb-6">About Us</h1>
+        <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-[#3D4852] mb-6">{t.aboutTitle}</h1>
         
         <div className="space-y-8 w-full max-w-xl text-[#6B7280]">
           {/* Welcome Intro */}
-          {aboutData.intro && (
+          {introText && (
             <div className="p-5 rounded-2xl neu-inset bg-[#E0E5EC] text-base text-[#3D4852] leading-relaxed">
-              <p>{aboutData.intro}</p>
+              <p>{introText}</p>
             </div>
           )}
 
@@ -44,7 +51,7 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
             <div className="p-6 rounded-2xl neu-card space-y-3">
               <div className="flex items-center justify-center gap-2 text-[#3D4852] font-bold text-lg">
                 <Phone className="w-5 h-5 text-[#2563EB]" />
-                <span>Contact Us</span>
+                <span>{t.contactUs}</span>
               </div>
               
               <div className="space-y-2">
@@ -62,7 +69,7 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
             <div className="p-6 rounded-2xl neu-card space-y-2">
               <div className="flex items-center justify-center gap-2 text-[#3D4852] font-bold text-lg">
                 <MapPin className="w-5 h-5 text-[#2563EB]" />
-                <span>Address</span>
+                <span>{t.addressTitle}</span>
               </div>
               <p className="text-sm font-semibold text-[#3D4852]">{aboutData.address}</p>
             </div>
@@ -73,11 +80,11 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
             <div className="p-4 rounded-3xl neu-inset bg-[#E0E5EC] space-y-2">
               <div className="flex items-center justify-center gap-2 text-[#3D4852] font-bold text-sm mb-2">
                 <Map className="w-4 h-4 text-[#2563EB]" />
-                <span>Find Us on Map</span>
+                <span>{t.findOnMap}</span>
               </div>
               <div className="flex justify-center overflow-hidden rounded-2xl">
                 <iframe 
-                  src={aboutData.mapEmbedUrl}
+                  src={aboutData.mapEmbedUrl} 
                   width="100%" 
                   height="260" 
                   style={{ border: 0 }} 
@@ -96,7 +103,7 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
             <div className="p-6 rounded-2xl neu-card space-y-2">
               <div className="flex items-center justify-center gap-2 text-[#3D4852] font-bold text-lg">
                 <Instagram className="w-5 h-5 text-[#2563EB]" />
-                <span>Follow Us</span>
+                <span>{t.followUs}</span>
               </div>
               <div>
                 <a 
@@ -105,7 +112,7 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
                   rel="noopener noreferrer" 
                   className="text-[#2563EB] hover:underline font-bold text-sm"
                 >
-                  Instagram Profile
+                  {t.instagramProfile}
                 </a>
               </div>
             </div>
@@ -121,9 +128,10 @@ export function AboutUsPage({ logoUrl, aboutData, onBackToHome }: AboutUsPagePro
           }}
           className="px-5 py-2.5 rounded-2xl neu-card text-xs font-bold text-[#6B7280] hover:text-[#2563EB] flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <ArrowUp className="w-4 h-4" /> Back to Top
+          <ArrowUp className="w-4 h-4" /> {t.backToTop.replace('↑ ', '')}
         </button>
       </div>
     </section>
   );
 }
+

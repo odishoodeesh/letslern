@@ -11,7 +11,8 @@ import {
   ArrowLeft,
   ArrowUp
 } from 'lucide-react';
-import { LanguageOffer, SkillsTrainingModule, LanguageArticle, Page } from '../types';
+import { LanguageOffer, SkillsTrainingModule, LanguageArticle, Page, LanguageCode } from '../types';
+import { getT } from '../lib/translations';
 
 interface SubjectsLanguagesPageProps {
   languages: LanguageOffer[];
@@ -19,6 +20,7 @@ interface SubjectsLanguagesPageProps {
   articles: LanguageArticle[];
   page?: Page;
   onBackToHome?: () => void;
+  currentLanguage?: LanguageCode;
 }
 
 export function SubjectsLanguagesPage({ 
@@ -26,8 +28,10 @@ export function SubjectsLanguagesPage({
   trainingModules, 
   articles, 
   page,
-  onBackToHome
+  onBackToHome,
+  currentLanguage = 'en'
 }: SubjectsLanguagesPageProps) {
+  const t = getT(currentLanguage);
   const [selectedArticleId, setSelectedArticleId] = useState<string>(articles[0]?.id || '');
   const activeArticle = articles.find(a => a.id === selectedArticleId) || articles[0];
 
@@ -40,7 +44,7 @@ export function SubjectsLanguagesPage({
             onClick={onBackToHome}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Home
+            <ArrowLeft className="w-4 h-4" /> {t.backToHome.replace('← ', '')}
           </button>
         </div>
       )}
@@ -49,13 +53,13 @@ export function SubjectsLanguagesPage({
       <div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-4">
           <Languages className="w-4 h-4" />
-          <span>Curriculum & Language Programs</span>
+          <span>{t.subjectsPageBadge}</span>
         </div>
         <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#3D4852] tracking-tight">
-          Subjects & Language Offerings
+          {t.subjectsPageTitle}
         </h1>
         <p className="mt-3 text-base sm:text-lg text-[#6B7280] max-w-3xl leading-relaxed">
-          Unlock your global potential through certified multilingual courses, intensive exam preparations, and customized professional skills training.
+          {t.subjectsPageSubtitle}
         </p>
       </div>
 
@@ -63,19 +67,19 @@ export function SubjectsLanguagesPage({
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">World Languages Offered</h2>
+            <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">{t.worldLanguagesTitle}</h2>
             <p className="text-sm text-[#6B7280]">
-              Expert-led native and certified instruction ({languages.length} active languages).
+              {t.worldLanguagesSubtitle} ({languages.length} {currentLanguage === 'en' ? 'active languages' : ''})
             </p>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 bg-white neu-card text-[#2563EB] rounded-full">
-            <Globe className="w-3.5 h-3.5" /> {languages.length} Languages
+            <Globe className="w-3.5 h-3.5" /> {languages.length}
           </span>
         </div>
 
         {languages.length === 0 ? (
           <div className="p-8 rounded-3xl neu-inset text-center text-[#6B7280]">
-            <p className="font-bold">No languages currently listed.</p>
+            <p className="font-bold">{t.noLanguagesListed}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -105,7 +109,7 @@ export function SubjectsLanguagesPage({
                 </p>
 
                 <div className="mt-5 pt-4 border-t border-[#E0E5EC]">
-                  <p className="text-xs font-bold text-[#3D4852] uppercase tracking-wider mb-2">Core Focus Areas</p>
+                  <p className="text-xs font-bold text-[#3D4852] uppercase tracking-wider mb-2">{t.coreFocusAreas}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {lang.focus.map((f, i) => (
                       <span key={i} className="text-xs px-2.5 py-1 rounded-xl neu-inset text-[#3D4852]">
@@ -123,13 +127,13 @@ export function SubjectsLanguagesPage({
       {/* 2. Academic & Skills Training Section */}
       <section className="space-y-6">
         <div>
-          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">Academic & Skills Training</h2>
-          <p className="text-sm text-[#6B7280]">Targeted career prep, certified translations, and tailored educational advisory.</p>
+          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">{t.trainingSectionTitle}</h2>
+          <p className="text-sm text-[#6B7280]">{t.trainingSectionSubtitle}</p>
         </div>
 
         {trainingModules.length === 0 ? (
           <div className="p-8 rounded-3xl neu-inset text-center text-[#6B7280]">
-            <p className="font-bold">No training modules currently listed.</p>
+            <p className="font-bold">{t.noTrainingListed}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -169,13 +173,13 @@ export function SubjectsLanguagesPage({
         <section className="space-y-6">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-2">
-              <BookOpen className="w-3.5 h-3.5" /> Linguistic Insights
+              <BookOpen className="w-3.5 h-3.5" /> <span>{t.articlesSectionTitle}</span>
             </div>
             <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">
-              Language Learning Articles & Comparative Grammar
+              {t.articlesSectionTitle}
             </h2>
             <p className="text-sm text-[#6B7280]">
-              Deep-dive explorations comparing grammar, morphology, and syntax across languages.
+              {t.articlesSectionSubtitle}
             </p>
           </div>
 
@@ -207,7 +211,7 @@ export function SubjectsLanguagesPage({
               {activeArticle ? (
                 <div>
                   <span className="text-xs font-bold px-3 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-full">
-                    Comparative Study
+                    {t.articlesSectionTitle}
                   </span>
                   <h3 className="font-display text-xl sm:text-2xl font-extrabold text-[#3D4852] mt-3">
                     {activeArticle.title}
@@ -252,9 +256,10 @@ export function SubjectsLanguagesPage({
           }}
           className="px-5 py-2.5 rounded-2xl neu-card text-xs font-bold text-[#6B7280] hover:text-[#2563EB] flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <ArrowUp className="w-4 h-4" /> Back to Top
+          <ArrowUp className="w-4 h-4" /> {t.backToTop.replace('↑ ', '')}
         </button>
       </div>
     </div>
   );
 }
+

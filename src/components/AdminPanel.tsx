@@ -25,7 +25,10 @@ import {
   RefreshCw, 
   HardDrive, 
   Save, 
-  ExternalLink 
+  ExternalLink,
+  Copy,
+  Database,
+  ShieldOff
 } from 'lucide-react';
 import { 
   uploadImageToSupabase, 
@@ -37,8 +40,12 @@ import {
   savePagesData,
   saveHomeSectionsData,
   saveLanguagesData,
-  saveTrainingModulesData
+  saveTrainingModulesData,
+  saveNewsData,
+  saveAcademicsData,
+  FULL_SUPABASE_SCHEMA_DISABLE_RLS_SQL
 } from '../lib/supabase';
+import { UploadsGallery } from './UploadsGallery';
 
 export interface AdminPanelProps {
   onClose: () => void;
@@ -461,283 +468,6 @@ const DeleteButton = ({
   );
 };
 
-// Full Media & Storage Manager Tab for Supabase Storage Bucket
-const MediaStorageTab = ({
-  onSetHeroImage,
-  onSetLogoImage,
-  currentHeroUrl,
-  currentLogoUrl
-}: {
-  onSetHeroImage: (url: string) => Promise<void>;
-  onSetLogoImage: (url: string) => Promise<void>;
-  currentHeroUrl?: string;
-  currentLogoUrl?: string;
-}) => {
-  const [images, setImages] = useState<BucketImage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const [actionStatus, setActionStatus] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const loadImages = async () => {
-    setIsLoading(true);
-    try {
-      const items = await listStorageBucketImages('uploads');
-      setImages(items);
-    } catch (err) {
-      console.error('Failed to load bucket images:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadImages();
-  }, []);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setActionStatus('Uploading file to Supabase storage bucket...');
-    try {
-      const url = await uploadImageToSupabase(file, 'uploads');
-      setActionStatus(`Uploaded ${file.name} successfully to bucket!`);
-      await loadImages();
-      setTimeout(() => setActionStatus(null), 3500);
-    } catch (err: any) {
-      setActionStatus('Upload failed. Please check your connection.');
-      setTimeout(() => setActionStatus(null), 4000);
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleDelete = async (img: BucketImage) => {
-    setDeletingPath(img.path);
-    try {
-      const ok = await deleteImageFromSupabase(img.path);
-      if (ok) {
-        setImages(prev => prev.filter(i => i.path !== img.path));
-        setActionStatus(`Permanently deleted ${img.name} from Supabase storage!`);
-        setTimeout(() => setActionStatus(null), 3000);
-      } else {
-        setActionStatus('Could not delete image. Please try again.');
-      }
-    } catch (err) {
-      setActionStatus('Error deleting image from bucket.');
-    } finally {
-      setDeletingPath(null);
-    }
-  };
-
-  const totalBytes = images.reduce((sum, img) => sum + (img.size || 0), 0);
-  const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
-
-  return (
-    <section className="bg-white p-6 rounded-3xl neu-card space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-[#3D4852]">Supabase Bucket Storage Manager</h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-              {STORAGE_BUCKET}
-            </span>
-          </div>
-          <p className="text-xs text-[#6B7280] mt-1">
-            Manage files stored in your Supabase bucket. Delete unneeded files to keep storage clean, or assign any image to your Hero banner or Logo.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="cursor-pointer px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-sm">
-            <CloudUpload className="w-4 h-4" />
-            <span>{isUploading ? 'Uploading...' : 'Upload New Image'}</span>
-            <input 
-              type="file" 
-              accept="image/*"
-              disabled={isUploading}
-              onChange={handleUpload} 
-              className="sr-only"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={loadImages}
-            disabled={isLoading}
-            className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors"
-            title="Refresh bucket contents"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Storage usage bar */}
-      <div className="p-4 rounded-2xl bg-[#E0E5EC] neu-inset flex flex-wrap items-center justify-between gap-4 text-xs font-bold text-[#3D4852]">
-        <div className="flex items-center gap-2">
-          <HardDrive className="w-4 h-4 text-[#2563EB]" />
-          <span>Total Bucket Files: {images.length}</span>
-        </div>
-        <div>
-          <span>Total Size: {totalMB} MB</span>
-        </div>
-        <div className="text-[#6B7280] font-normal text-[11px]">
-          Target Folder: <code className="font-mono font-bold text-[#3D4852]">uploads/</code>
-        </div>
-      </div>
-
-      {actionStatus && (
-        <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-blue-600" />
-            {actionStatus}
-          </span>
-          <button onClick={() => setActionStatus(null)} className="text-blue-700 hover:text-blue-900">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="py-16 flex flex-col items-center justify-center gap-3 text-[#2563EB]">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="text-xs font-bold">Querying Supabase Storage bucket...</span>
-        </div>
-      ) : images.length === 0 ? (
-        <div className="py-16 text-center space-y-3 bg-[#F9FAFB] rounded-2xl border-2 border-dashed border-gray-200 p-8">
-          <HardDrive className="w-12 h-12 text-gray-400 mx-auto" />
-          <h3 className="text-base font-bold text-[#3D4852]">Bucket folder is clean and empty</h3>
-          <p className="text-xs text-[#6B7280] max-w-sm mx-auto">
-            No leftover or wasted images. Upload an image above, or add an image in any page section to see it here.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {images.map((img) => {
-            const isHero = currentHeroUrl === img.url;
-            const isLogo = currentLogoUrl === img.url;
-
-            return (
-              <div 
-                key={img.path}
-                className="bg-[#E0E5EC] p-3.5 rounded-2xl neu-card flex flex-col justify-between space-y-3 border border-gray-200"
-              >
-                <div className="relative w-full h-40 rounded-xl overflow-hidden bg-white shadow-inner flex items-center justify-center">
-                  <img 
-                    src={img.url} 
-                    alt={img.name} 
-                    className="w-full h-full object-cover" 
-                    referrerPolicy="no-referrer"
-                  />
-                  {(isHero || isLogo) && (
-                    <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      {isHero && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow">
-                          Active Hero
-                        </span>
-                      )}
-                      {isLogo && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-bold shadow">
-                          Active Logo
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs font-mono font-bold text-[#3D4852] truncate" title={img.name}>
-                    {img.name}
-                  </p>
-                  <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
-                    <span>{img.size ? `${(img.size / 1024).toFixed(1)} KB` : 'Uploaded'}</span>
-                    {img.created_at && (
-                      <span>{new Date(img.created_at).toLocaleDateString()}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-gray-300">
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await onSetHeroImage(img.url);
-                        setActionStatus(`Set ${img.name} as active Hero banner & saved to database!`);
-                        setTimeout(() => setActionStatus(null), 3000);
-                      }}
-                      className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                        isHero 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-white hover:bg-blue-50 text-[#2563EB] neu-inset'
-                      }`}
-                    >
-                      {isHero ? '✓ Current Hero' : 'Use as Hero'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await onSetLogoImage(img.url);
-                        setActionStatus(`Set ${img.name} as active Logo & saved to database!`);
-                        setTimeout(() => setActionStatus(null), 3000);
-                      }}
-                      className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                        isLogo 
-                          ? 'bg-emerald-600 text-white' 
-                          : 'bg-white hover:bg-emerald-50 text-emerald-700 neu-inset'
-                      }`}
-                    >
-                      {isLogo ? '✓ Current Logo' : 'Use as Logo'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <a
-                      href={img.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-semibold text-gray-600 hover:text-[#2563EB] flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>View File</span>
-                    </a>
-
-                    <button
-                      type="button"
-                      disabled={deletingPath === img.path}
-                      onClick={() => handleDelete(img)}
-                      className="px-2.5 py-1 text-red-600 hover:bg-red-50 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors"
-                      title="Delete permanently to save storage"
-                    >
-                      {deletingPath === img.path ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Deleting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-3 h-3" />
-                          <span>Delete</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-};
-
 export function AdminPanel({
   onClose,
   logoUrl,
@@ -784,17 +514,72 @@ export function AdminPanel({
   const [activeTab, setActiveTab] = useState('Pages');
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveAllStatus, setSaveAllStatus] = useState<string | null>(null);
+  const [newsSaveStatus, setNewsSaveStatus] = useState<string | null>(null);
+  const [isSavingNews, setIsSavingNews] = useState(false);
+  const [academicsSaveStatus, setAcademicsSaveStatus] = useState<string | null>(null);
+  const [isSavingAcademics, setIsSavingAcademics] = useState(false);
+  const [isSqlCopied, setIsSqlCopied] = useState(false);
+
+  const handleSaveNewsOnly = async () => {
+    setIsSavingNews(true);
+    setNewsSaveStatus(null);
+    try {
+      // Explicitly persist to localStorage immediately
+      try {
+        localStorage.setItem('ll_news_items', JSON.stringify(newsItems));
+      } catch (e) {
+        console.warn('localStorage save warning:', e);
+      }
+      const ok = await saveNewsData(newsItems);
+      if (ok) {
+        setNewsSaveStatus('News announcements successfully saved to live database!');
+      } else {
+        setNewsSaveStatus('Saved locally. Database sync completed with fallback.');
+      }
+      setTimeout(() => setNewsSaveStatus(null), 4000);
+    } catch (err) {
+      console.error('Save news error:', err);
+      setNewsSaveStatus('Error syncing news.');
+    } finally {
+      setIsSavingNews(false);
+    }
+  };
+
+  const handleSaveAcademicsOnly = async () => {
+    setIsSavingAcademics(true);
+    setAcademicsSaveStatus(null);
+    try {
+      try {
+        localStorage.setItem('ll_academic_departments', JSON.stringify(academicDepartments));
+      } catch (e) {
+        console.warn('localStorage save warning:', e);
+      }
+      const ok = await saveAcademicsData(academicDepartments);
+      if (ok) {
+        setAcademicsSaveStatus('Academic departments saved to live database!');
+      } else {
+        setAcademicsSaveStatus('Saved locally.');
+      }
+      setTimeout(() => setAcademicsSaveStatus(null), 4000);
+    } catch (err) {
+      console.error('Save academics error:', err);
+      setAcademicsSaveStatus('Error saving departments.');
+    } finally {
+      setIsSavingAcademics(false);
+    }
+  };
 
   const tabs = [
     'Pages',
+    'Uploads Gallery',
+    'News',
     'Subjects & Languages',
     'Goals & Mission',
     'About Us',
     'Home Sections',
     'Hero & Branding',
-    'Media & Storage',
-    'News',
-    'Academics'
+    'Academics',
+    'Database SQL (RLS Disabled)'
   ];
 
   const handleSaveAllToLiveWebsite = async () => {
@@ -817,12 +602,14 @@ export function AdminPanel({
       const p4 = saveAboutUsData(aboutData);
       const p5 = saveLanguagesData(languages);
       const p6 = saveTrainingModulesData(trainingModules);
+      const p7 = saveNewsData(newsItems);
+      const p8 = saveAcademicsData(academicDepartments);
 
-      const results = await Promise.all([p1, p2, p3, p4, p5, p6]);
+      const results = await Promise.all([p1, p2, p3, p4, p5, p6, p7, p8]);
       const allOk = results.every(Boolean);
 
       if (allOk) {
-        setSaveAllStatus('All changes, pages & uploaded images successfully saved to live Supabase database!');
+        setSaveAllStatus('All changes, pages, news & uploaded images successfully saved to live Supabase database!');
         setTimeout(() => setSaveAllStatus(null), 5000);
       } else {
         setSaveAllStatus('Saved with partial warnings. Check browser console.');
@@ -1721,9 +1508,9 @@ export function AdminPanel({
           </section>
         )}
 
-        {/* Tab 7: Media & Bucket Storage */}
-        {activeTab === 'Media & Storage' && (
-          <MediaStorageTab 
+        {/* Tab: Uploads Gallery (Supabase Storage Browser) */}
+        {(activeTab === 'Uploads Gallery' || activeTab === 'Media & Storage') && (
+          <UploadsGallery 
             onSetHeroImage={async (url) => {
               setHeroImageUrl(url);
               await saveInstituteSettings({ hero_image_url: url });
@@ -1740,77 +1527,170 @@ export function AdminPanel({
         {/* Tab 7: News */}
         {activeTab === 'News' && (
           <section className="bg-white p-6 rounded-3xl neu-card space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-[#3D4852]">News & Announcements</h2>
-                <p className="text-xs text-[#6B7280]">Publish or delete academy news items.</p>
+                <p className="text-xs text-[#6B7280]">Publish, edit, upload images, and persist academy news items to live database.</p>
               </div>
-              <button 
-                onClick={() => setNewsItems([...newsItems, { id: Date.now().toString(), title: 'New News Announcement', date: new Date().toLocaleDateString(), summary: '' }])} 
-                className="px-3 py-1.5 bg-[#2563EB] text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-[#1D4ED8]"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add News Item
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleSaveNewsOnly}
+                  disabled={isSavingNews}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Save News directly to Supabase"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {isSavingNews ? 'Saving...' : 'Save News to Database'}
+                </button>
+                <button 
+                  onClick={() => {
+                    const newItem = { 
+                      id: 'news-' + Date.now(), 
+                      title: 'New Academy Announcement', 
+                      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), 
+                      summary: '', 
+                      imageUrl: '' 
+                    };
+                    const updated = [newItem, ...newsItems];
+                    setNewsItems(updated);
+                    try {
+                      localStorage.setItem('ll_news_items', JSON.stringify(updated));
+                    } catch (e) {
+                      console.warn(e);
+                    }
+                  }} 
+                  className="px-3.5 py-1.5 bg-[#2563EB] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-[#1D4ED8] cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add News Item
+                </button>
+              </div>
             </div>
 
-            {newsItems.map((item, index) => (
-              <div key={item.id} className="p-4 bg-[#E0E5EC] rounded-2xl space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <input 
-                    type="text" 
-                    value={item.title} 
+            {newsSaveStatus && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
+                {newsSaveStatus}
+              </div>
+            )}
+
+            {newsItems.length === 0 ? (
+              <div className="p-8 text-center bg-[#E0E5EC] rounded-2xl neu-inset space-y-2">
+                <p className="text-xs font-semibold text-[#6B7280]">No news announcements created yet.</p>
+                <button 
+                  onClick={() => {
+                    const newItem = { 
+                      id: 'news-' + Date.now(), 
+                      title: 'Welcome to Let\'s Lern Institute', 
+                      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), 
+                      summary: 'Enrollment is now open for our world languages, TOEFL, and IELTS preparation courses.', 
+                      imageUrl: '' 
+                    };
+                    const updated = [newItem];
+                    setNewsItems(updated);
+                  }}
+                  className="text-xs font-bold text-[#2563EB] hover:underline"
+                >
+                  Click here to create the first announcement
+                </button>
+              </div>
+            ) : (
+              newsItems.map((item, index) => (
+                <div key={item.id} className="p-4 bg-[#E0E5EC] rounded-2xl space-y-3 border border-white/50">
+                  <div className="flex items-center justify-between gap-2">
+                    <input 
+                      type="text" 
+                      value={item.title} 
+                      onChange={(e) => {
+                        const newNews = [...newsItems];
+                        newNews[index].title = e.target.value;
+                        setNewsItems(newNews);
+                      }} 
+                      className="w-full p-2.5 rounded-xl neu-extruded bg-white text-xs font-bold" 
+                      placeholder="Announcement Title" 
+                    />
+                    <input 
+                      type="text" 
+                      value={item.date || ''} 
+                      onChange={(e) => {
+                        const newNews = [...newsItems];
+                        newNews[index].date = e.target.value;
+                        setNewsItems(newNews);
+                      }} 
+                      className="w-32 p-2.5 rounded-xl neu-extruded bg-white text-xs font-semibold" 
+                      placeholder="Date (e.g. Oct 24, 2026)" 
+                    />
+                    <DeleteButton
+                      onDelete={() => {
+                        const updated = newsItems.filter((_, i) => i !== index);
+                        setNewsItems(updated);
+                        try {
+                          localStorage.setItem('ll_news_items', JSON.stringify(updated));
+                        } catch (e) {
+                          console.warn(e);
+                        }
+                      }}
+                      title="Delete news item"
+                    />
+                  </div>
+                  <textarea 
+                    rows={2}
+                    value={item.summary} 
                     onChange={(e) => {
                       const newNews = [...newsItems];
-                      newNews[index].title = e.target.value;
+                      newNews[index].summary = e.target.value;
                       setNewsItems(newNews);
                     }} 
-                    className="w-full p-2.5 rounded-xl neu-extruded bg-white text-xs font-bold" 
-                    placeholder="News Title" 
+                    className="w-full p-2.5 rounded-xl neu-extruded bg-white text-xs" 
+                    placeholder="Announcement details & summary..." 
                   />
-                  <DeleteButton
-                    onDelete={() => setNewsItems(newsItems.filter((_, i) => i !== index))}
-                    title="Delete news item"
-                  />
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold text-[#3D4852] block">Cover / Illustration Image:</span>
+                    <ImageUploader 
+                      onUpload={(url) => {
+                        const newNews = [...newsItems];
+                        newNews[index].imageUrl = url;
+                        setNewsItems(newNews);
+                      }} 
+                      currentUrl={item.imageUrl || ''} 
+                    />
+                  </div>
                 </div>
-                <textarea 
-                  rows={2}
-                  value={item.summary} 
-                  onChange={(e) => {
-                    const newNews = [...newsItems];
-                    newNews[index].summary = e.target.value;
-                    setNewsItems(newNews);
-                  }} 
-                  className="w-full p-2.5 rounded-xl neu-extruded bg-white text-xs" 
-                  placeholder="Summary" 
-                />
-                <ImageUploader 
-                  onUpload={(url) => {
-                    const newNews = [...newsItems];
-                    newNews[index].imageUrl = url;
-                    setNewsItems(newNews);
-                  }} 
-                  currentUrl={item.imageUrl || ''} 
-                />
-              </div>
-            ))}
+              ))
+            )}
           </section>
         )}
 
         {/* Tab 8: Academics */}
         {activeTab === 'Academics' && (
           <section className="bg-white p-6 rounded-3xl neu-card space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-[#3D4852]">Academic Departments</h2>
-                <p className="text-xs text-[#6B7280]">Manage academy subject departments.</p>
+                <p className="text-xs text-[#6B7280]">Manage academy subject departments and curricula.</p>
               </div>
-              <button 
-                onClick={() => setAcademicDepartments([...academicDepartments, { id: Date.now().toString(), name: 'New Department', description: 'Department overview...' }])} 
-                className="px-3 py-1.5 bg-[#2563EB] text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-[#1D4ED8]"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Department
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleSaveAcademicsOnly}
+                  disabled={isSavingAcademics}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Save Academics to database"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {isSavingAcademics ? 'Saving...' : 'Save Departments'}
+                </button>
+                <button 
+                  onClick={() => setAcademicDepartments([...academicDepartments, { id: 'dept-' + Date.now(), name: 'New Department', description: 'Department overview...' }])} 
+                  className="px-3.5 py-1.5 bg-[#2563EB] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-[#1D4ED8] cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Department
+                </button>
+              </div>
             </div>
+
+            {academicsSaveStatus && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
+                {academicsSaveStatus}
+              </div>
+            )}
 
             {academicDepartments.map((dept, index) => (
               <div key={dept.id} className="p-4 bg-[#E0E5EC] rounded-2xl space-y-2">
@@ -1844,6 +1724,71 @@ export function AdminPanel({
                 />
               </div>
             ))}
+          </section>
+        )}
+
+        {/* Tab 9: Database SQL (RLS Disabled) */}
+        {activeTab === 'Database SQL (RLS Disabled)' && (
+          <section className="bg-white p-6 rounded-3xl neu-card space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-[#2563EB]" />
+                  <h2 className="text-xl font-bold text-[#3D4852]">Full Supabase SQL (RLS Disabled)</h2>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                    <ShieldOff className="w-3 h-3" />
+                    RLS Disabled
+                  </span>
+                </div>
+                <p className="text-xs text-[#6B7280] mt-1">
+                  Run this SQL in your <strong>Supabase Dashboard &rarr; SQL Editor</strong> to create all tables, disable RLS, and configure the <code className="bg-gray-100 px-1 py-0.5 rounded font-mono text-[11px]">bucket</code> storage bucket.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(FULL_SUPABASE_SCHEMA_DISABLE_RLS_SQL);
+                    setIsSqlCopied(true);
+                    setTimeout(() => setIsSqlCopied(false), 3000);
+                  }}
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                >
+                  {isSqlCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-300" />
+                      <span>Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copy Full SQL</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <ShieldOff className="w-4 h-4 text-amber-600" />
+                Row Level Security (RLS) is Completely Disabled
+              </p>
+              <p className="text-amber-800 text-[11px]">
+                All 8 tables have <code>ALTER TABLE ... DISABLE ROW LEVEL SECURITY;</code> enabled with full <code>GRANT ALL</code> permissions to <code>anon</code> and <code>authenticated</code> roles so that your live academy website and admin panel can read and save data without permission blocks.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-[#6B7280]">
+                <span className="font-semibold">SQL Script Viewer (Ready to Run):</span>
+                <span className="font-mono text-[11px]">supabase-setup.sql</span>
+              </div>
+              <pre className="p-4 bg-[#1E293B] text-emerald-300 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-96 border border-slate-700 leading-relaxed select-all">
+                {FULL_SUPABASE_SCHEMA_DISABLE_RLS_SQL}
+              </pre>
+            </div>
           </section>
         )}
       </div>

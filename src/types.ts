@@ -85,3 +85,21 @@ export type BucketImage = {
   size: number;
   updatedAt: string;
 };
+
+export type LanguageCode = 
+  | 'en'
+  | 'de'
+  | 'ar'
+  | 'tr'
+  | 'fr'
+  | 'nl'
+  | 'ku-badini'
+  | 'ku-sorani';
+
+export interface LanguageOption {
+  id: LanguageCode;
+  name: string;
+  nativeName: string;
+  note?: string;
+  direction: 'ltr' | 'rtl';
+}

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Languages, GraduationCap, Globe, Compass, Award } from 'lucide-react';
+import { LanguageCode } from '../types';
+import { getT } from '../lib/translations';
 
 interface HeroSectionProps {
   heroImageUrl: string;
@@ -10,19 +12,26 @@ interface HeroSectionProps {
   bottomTitle?: string;
   bottomDescription?: string;
   onNavigate?: (pageId: string) => void;
+  currentLanguage?: LanguageCode;
 }
 
 export function HeroSection({
   heroImageUrl,
-  topTitle = "Let's Lern Institute",
-  topSubtitle = 'Premier Language Training, Exam Preparation & Global Academic Guidance in Duhok.',
+  topTitle,
+  topSubtitle,
   overlayTitle = '',
   overlaySubtitle = '',
   bottomTitle = '',
   bottomDescription = '',
   onNavigate,
+  currentLanguage = 'en'
 }: HeroSectionProps) {
-  const hasTopContent = Boolean(topTitle?.trim() || topSubtitle?.trim());
+  const t = getT(currentLanguage);
+
+  const displayTopTitle = topTitle?.trim() || t.heroTopTitle;
+  const displayTopSubtitle = topSubtitle?.trim() || t.heroTopSubtitle;
+
+  const hasTopContent = Boolean(displayTopTitle || displayTopSubtitle);
   const hasOverlay = Boolean(overlayTitle?.trim() || overlaySubtitle?.trim());
   const hasBottomContent = Boolean(bottomTitle?.trim() || bottomDescription?.trim());
   const hasValidImage = Boolean(heroImageUrl && heroImageUrl.trim());
@@ -32,14 +41,14 @@ export function HeroSection({
       {/* Text on top of hero image (between header and hero image, directly on page, not in a box) */}
       {hasTopContent && (
         <div className="mb-6 sm:mb-8">
-          {topTitle?.trim() && (
+          {displayTopTitle && (
             <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#3D4852] tracking-tight leading-tight">
-              {topTitle}
+              {displayTopTitle}
             </h1>
           )}
-          {topSubtitle?.trim() && (
+          {displayTopSubtitle && (
             <p className="mt-3 text-base sm:text-lg text-[#6B7280] max-w-3xl leading-relaxed">
-              {topSubtitle}
+              {displayTopSubtitle}
             </p>
           )}
         </div>
@@ -76,15 +85,15 @@ export function HeroSection({
             <div className="max-w-3xl space-y-4">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB]">
                 <Award className="w-4 h-4" />
-                <span>Let's Lern Institute • Duhok</span>
+                <span>{t.heroBadge}</span>
               </div>
 
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#3D4852] tracking-tight leading-tight">
-                Welcome to Let's Lern
+                {t.heroWelcomeTitle}
               </h2>
 
               <p className="text-base text-[#6B7280] leading-relaxed">
-                Dedicated to academic growth, certified language education, and global learning opportunities in Duhok.
+                {t.heroWelcomeDesc}
               </p>
 
               {onNavigate && (
@@ -93,14 +102,13 @@ export function HeroSection({
                     onClick={() => onNavigate('about')}
                     className="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors cursor-pointer shadow-sm"
                   >
-                    About & Contact Details
+                    {t.heroAboutButton}
                   </button>
                 </div>
               )}
             </div>
           </div>
         )}
-
 
         {hasBottomContent && (
           <div className="p-8 border-t border-[#E0E5EC]">
@@ -120,5 +128,6 @@ export function HeroSection({
     </section>
   );
 }
+
 
 

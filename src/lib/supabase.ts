@@ -124,42 +124,105 @@ export async function deleteImageFromSupabase(urlOrPath: string): Promise<boolea
 }
 
 /**
- * Lists all images currently in the Supabase storage bucket folder
- * so the user can inspect, pick, or clean up unused files.
+ * Lists all images currently in the Supabase storage bucket
+ * (searches the 'uploads' folder and root) so the admin can inspect, preview,
+ * or clean up any image they want.
  */
 export async function listStorageBucketImages(folder = 'uploads'): Promise<BucketImage[]> {
   try {
-    const { data, error } = await supabase.storage
+    const resultsMap = new Map<string, BucketImage>();
+
+    // 1. Fetch from specific folder (default: 'uploads')
+    const { data: folderData, error: folderError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .list(folder, {
-        limit: 100,
+        limit: 200,
         sortBy: { column: 'created_at', order: 'desc' },
       });
 
-    if (error || !data) {
-      console.error('Error listing bucket files:', error);
-      return [];
+    if (!folderError && folderData) {
+      folderData
+        .filter(item => item.name && !item.name.startsWith('.') && item.name !== '.emptyFolderPlaceholder')
+        .forEach(item => {
+          const path = folder ? `${folder}/${item.name}` : item.name;
+          const { data: urlData } = supabase.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(path);
+
+          resultsMap.set(path, {
+            name: item.name,
+            path,
+            url: urlData.publicUrl,
+            size: item.metadata?.size || (item as any).size || 0,
+            updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+          });
+        });
     }
 
-    return data
-      .filter(item => item.name && !item.name.startsWith('.'))
-      .map(item => {
-        const path = `${folder}/${item.name}`;
-        const { data: urlData } = supabase.storage
-          .from(STORAGE_BUCKET)
-          .getPublicUrl(path);
+    // 2. Also check root if folder is 'uploads'
+    if (folder === 'uploads') {
+      const { data: rootData, error: rootError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .list('', {
+          limit: 100,
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
 
-        return {
-          name: item.name,
-          path,
-          url: urlData.publicUrl,
-          size: item.metadata?.size || 0,
-          updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
-        };
-      });
+      if (!rootError && rootData) {
+        rootData
+          .filter(item => item.name && !item.name.startsWith('.') && item.name !== 'uploads' && item.name !== '.emptyFolderPlaceholder')
+          .forEach(item => {
+            const path = item.name;
+            const { data: urlData } = supabase.storage
+              .from(STORAGE_BUCKET)
+              .getPublicUrl(path);
+
+            if (!resultsMap.has(path)) {
+              resultsMap.set(path, {
+                name: item.name,
+                path,
+                url: urlData.publicUrl,
+                size: item.metadata?.size || (item as any).size || 0,
+                updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+              });
+            }
+          });
+      }
+    }
+
+    return Array.from(resultsMap.values()).sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
   } catch (err) {
     console.error('Failed to list images from Supabase storage:', err);
     return [];
+  }
+}
+
+/**
+ * Permanently deletes multiple image files from the Supabase Storage Bucket.
+ */
+export async function deleteMultipleImagesFromSupabase(paths: string[]): Promise<boolean> {
+  if (!paths || paths.length === 0) return true;
+  try {
+    const cleanPaths = paths
+      .map(p => extractStoragePath(p) || p)
+      .filter(Boolean);
+
+    if (cleanPaths.length === 0) return false;
+
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove(cleanPaths);
+
+    if (error) {
+      console.error('Batch delete error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Batch delete failed:', err);
+    return false;
   }
 }
 
@@ -527,3 +590,316 @@ export async function saveTrainingModulesData(modules: SkillsTrainingModule[]): 
     return false;
   }
 }
+
+/**
+ * Fetches News & Announcements from Supabase
+ */
+export async function fetchNewsData(): Promise<NewsItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('news_items')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data.map((n: any) => ({
+        id: String(n.id),
+        title: n.title || '',
+        date: n.date || '',
+        summary: n.summary || '',
+        imageUrl: n.image_url || undefined,
+      }));
+    }
+
+    // Try fallback table name 'news'
+    const { data: altData, error: altError } = await supabase
+      .from('news')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (!altError && altData && altData.length > 0) {
+      return altData.map((n: any) => ({
+        id: String(n.id),
+        title: n.title || '',
+        date: n.date || '',
+        summary: n.summary || '',
+        imageUrl: n.image_url || undefined,
+      }));
+    }
+
+    return [];
+  } catch (err) {
+    console.warn('Could not fetch news data:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists News & Announcements to Supabase
+ */
+export async function saveNewsData(newsItems: NewsItem[]): Promise<boolean> {
+  try {
+    // Delete existing records first
+    const { error: delError } = await supabase.from('news_items').delete().neq('id', '');
+    
+    if (!delError) {
+      if (newsItems.length === 0) return true;
+      const payload = newsItems.map((item, idx) => ({
+        id: item.id,
+        title: item.title,
+        date: item.date || new Date().toLocaleDateString(),
+        summary: item.summary,
+        image_url: item.imageUrl || null,
+        display_order: idx + 1,
+      }));
+      const { error: insError } = await supabase.from('news_items').insert(payload);
+      if (!insError) return true;
+    }
+
+    // Fallback if table name is 'news'
+    const { error: altDelError } = await supabase.from('news').delete().neq('id', '');
+    if (!altDelError) {
+      if (newsItems.length === 0) return true;
+      const payload = newsItems.map((item, idx) => ({
+        id: item.id,
+        title: item.title,
+        date: item.date || new Date().toLocaleDateString(),
+        summary: item.summary,
+        image_url: item.imageUrl || null,
+        display_order: idx + 1,
+      }));
+      const { error: altInsError } = await supabase.from('news').insert(payload);
+      if (!altInsError) return true;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error saving news items:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetches Academic Departments from Supabase
+ */
+export async function fetchAcademicsData(): Promise<AcademicDepartment[]> {
+  try {
+    const { data, error } = await supabase
+      .from('academic_departments')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data.map((d: any) => ({
+        id: String(d.id),
+        name: d.name || '',
+        description: d.description || '',
+        icon: d.icon || undefined,
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.warn('Could not fetch academic departments:', err);
+    return [];
+  }
+}
+
+/**
+ * Persists Academic Departments to Supabase
+ */
+export async function saveAcademicsData(departments: AcademicDepartment[]): Promise<boolean> {
+  try {
+    const { error: delError } = await supabase.from('academic_departments').delete().neq('id', '');
+    if (!delError) {
+      if (departments.length === 0) return true;
+      const payload = departments.map((d, idx) => ({
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        icon: d.icon || null,
+        display_order: idx + 1,
+      }));
+      const { error: insError } = await supabase.from('academic_departments').insert(payload);
+      if (!insError) return true;
+    }
+    return true;
+  } catch (err) {
+    console.error('Error saving academic departments:', err);
+    return false;
+  }
+}
+
+/**
+ * Complete Supabase SQL Script to create all tables, disable RLS,
+ * grant full read/write permissions, configure storage, and seed default records.
+ */
+export const FULL_SUPABASE_SCHEMA_DISABLE_RLS_SQL = `-- ==============================================================================
+-- LET'S LERN ACADEMY - FULL SUPABASE DATABASE SETUP (RLS DISABLED)
+-- Run this SQL in your Supabase Project -> SQL Editor
+-- ==============================================================================
+
+-- 1. EXTENSIONS
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. TABLE: institute_settings
+CREATE TABLE IF NOT EXISTS public.institute_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    institution_name TEXT DEFAULT 'Let''s Lern',
+    logo_url TEXT,
+    hero_image_url TEXT,
+    hero_top_title TEXT DEFAULT 'World-Class Language Education & Career Mastery',
+    hero_top_subtitle TEXT DEFAULT 'Certified multi-language programs, certified exam preparation, and global study pathway guidance.',
+    hero_overlay_title TEXT DEFAULT 'Welcome to Let''s Lern Institute',
+    hero_overlay_subtitle TEXT DEFAULT 'Empowering learners with world languages and modern career skills.',
+    hero_bottom_title TEXT DEFAULT 'Language Academy & Global Pathways',
+    hero_bottom_description TEXT DEFAULT 'Comprehensive courses in 6 accredited languages, official test preparation (TOEFL, IELTS, Goethe, TÖMER), and international university advisory in Duhok.',
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 3. TABLE: about_us
+CREATE TABLE IF NOT EXISTS public.about_us (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    intro TEXT DEFAULT 'Let''s Lern Language Institute is a premier educational center dedicated to empowering learners with certified language proficiency, internationally recognized exam qualifications, and comprehensive study-abroad guidance.',
+    phone_numbers TEXT[] DEFAULT ARRAY['+964 750 491 5066', '+964 750 178 8777']::TEXT[],
+    address TEXT DEFAULT 'Duhok, Kurdistan Region, Iraq',
+    instagram_url TEXT DEFAULT 'https://instagram.com/letslern',
+    map_embed_url TEXT DEFAULT 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d102148.56064975549!2d42.923838!3d36.862499!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x40088cb372f88365%3A0x6a09a56247c4e5ea!2sDuhok!5e0!3m2!1sen!2siq!4v1700000000000!5m2!1sen!2siq',
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. TABLE: pages
+CREATE TABLE IF NOT EXISTS public.pages (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_system BOOLEAN DEFAULT false,
+    sections JSONB DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. TABLE: home_sections
+CREATE TABLE IF NOT EXISTS public.home_sections (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL DEFAULT 'text',
+    title TEXT NOT NULL,
+    content TEXT DEFAULT '',
+    image_url TEXT,
+    display_order INTEGER DEFAULT 0,
+    schedule JSONB DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. TABLE: language_offers
+CREATE TABLE IF NOT EXISTS public.language_offers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    native TEXT NOT NULL,
+    code TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    levels TEXT DEFAULT 'A1 - C2',
+    focus TEXT[] DEFAULT '{}'::TEXT[],
+    display_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. TABLE: skills_training_modules
+CREATE TABLE IF NOT EXISTS public.skills_training_modules (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    points TEXT[] DEFAULT '{}'::TEXT[],
+    display_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. TABLE: news_items & fallback table news
+CREATE TABLE IF NOT EXISTS public.news_items (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date TEXT DEFAULT '',
+    summary TEXT DEFAULT '',
+    image_url TEXT,
+    display_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.news (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date TEXT DEFAULT '',
+    summary TEXT DEFAULT '',
+    image_url TEXT,
+    display_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 9. TABLE: academic_departments
+CREATE TABLE IF NOT EXISTS public.academic_departments (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    icon TEXT,
+    display_order INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- ==============================================================================
+-- DISABLE ROW LEVEL SECURITY (RLS) ON ALL LIVE TABLES
+-- ==============================================================================
+ALTER TABLE IF EXISTS public.institute_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.about_us DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.pages DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.home_sections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.language_offers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.skills_training_modules DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.news_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.news DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.academic_departments DISABLE ROW LEVEL SECURITY;
+
+-- ==============================================================================
+-- GRANT OPEN ACCESS TO ANON, AUTHENTICATED, AND SERVICE_ROLE
+-- ==============================================================================
+GRANT ALL ON TABLE public.institute_settings TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.about_us TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.pages TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.home_sections TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.language_offers TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.skills_training_modules TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.news_items TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.news TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.academic_departments TO anon, authenticated, service_role;
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+-- ==============================================================================
+-- CONFIGURE STORAGE BUCKET ('bucket') WITH PUBLIC ACCESS
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('bucket', 'bucket', true, 52428800, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']::text[])
+ON CONFLICT (id) DO UPDATE 
+SET public = true, 
+    file_size_limit = 52428800;
+
+DROP POLICY IF EXISTS "Public Full Access on Bucket" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Select" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Delete" ON storage.objects;
+
+CREATE POLICY "Public Full Access on Bucket" 
+ON storage.objects 
+FOR ALL 
+TO public 
+USING (bucket_id = 'bucket') 
+WITH CHECK (bucket_id = 'bucket');
+
+-- ==============================================================================
+-- SEED INITIAL DEFAULT RECORDS (IF EMPTY)
+-- ==============================================================================
+INSERT INTO public.institute_settings (id, institution_name)
+VALUES ('default', 'Let''s Lern')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.about_us (id, intro)
+VALUES ('default', 'Let''s Lern Language Institute is a premier educational center.')
+ON CONFLICT (id) DO NOTHING;
+`;
+

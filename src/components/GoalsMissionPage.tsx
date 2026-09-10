@@ -10,21 +10,26 @@ import {
   ArrowLeft,
   ArrowUp
 } from 'lucide-react';
-import { MissionSlogan, MissionPillar, Page } from '../types';
+import { MissionSlogan, MissionPillar, Page, LanguageCode } from '../types';
+import { getT } from '../lib/translations';
 
 interface GoalsMissionPageProps {
   slogans: MissionSlogan[];
   pillars: MissionPillar[];
   page?: Page;
   onBackToHome?: () => void;
+  currentLanguage?: LanguageCode;
 }
 
 export function GoalsMissionPage({ 
   slogans, 
   pillars, 
   page,
-  onBackToHome
+  onBackToHome,
+  currentLanguage = 'en'
 }: GoalsMissionPageProps) {
+  const t = getT(currentLanguage);
+
   return (
     <div className="py-6 space-y-12">
       {/* Top Navigation */}
@@ -34,7 +39,7 @@ export function GoalsMissionPage({
             onClick={onBackToHome}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Home
+            <ArrowLeft className="w-4 h-4" /> {t.backToHome.replace('← ', '')}
           </button>
         </div>
       )}
@@ -43,28 +48,28 @@ export function GoalsMissionPage({
       <div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full neu-inset text-xs font-bold text-[#2563EB] mb-4">
           <Target className="w-4 h-4" />
-          <span>Our Vision & Guiding Principles</span>
+          <span>{t.goalsPageBadge}</span>
         </div>
         <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#3D4852] tracking-tight">
-          Goals & Mission
+          {t.goalsPageTitle}
         </h1>
         <p className="mt-3 text-base sm:text-lg text-[#6B7280] max-w-3xl leading-relaxed">
-          Dedicated to transforming ambitious learners into globally empowered, multilingual scholars equipped for top international universities and rewarding careers.
+          {t.goalsPageSubtitle}
         </p>
       </div>
 
       {/* 1. Slogans Banner Section */}
       <section className="space-y-6">
         <div>
-          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">Our Core Slogans & Mottos</h2>
+          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">{t.slogansSectionTitle}</h2>
           <p className="text-sm text-[#6B7280]">
-            The foundational philosophies that motivate our teachers, students, and mentors ({slogans.length} slogans).
+            {t.slogansSectionSubtitle} ({slogans.length} {currentLanguage === 'en' ? 'slogans' : ''})
           </p>
         </div>
 
         {slogans.length === 0 ? (
           <div className="p-8 rounded-3xl neu-inset text-center text-[#6B7280]">
-            <p className="font-bold">No slogans currently listed.</p>
+            <p className="font-bold">{t.noSlogansListed}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -92,7 +97,7 @@ export function GoalsMissionPage({
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#E0E5EC] flex items-center justify-between text-xs font-bold text-[#3D4852]">
-                  <span>Pillar 0{idx + 1}</span>
+                  <span>{t.pillarPrefix} 0{idx + 1}</span>
                   <Sparkles className="w-4 h-4 text-[#2563EB]" />
                 </div>
               </div>
@@ -104,15 +109,15 @@ export function GoalsMissionPage({
       {/* 2. Strategic Pillars Section */}
       <section className="space-y-6">
         <div>
-          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">Strategic Pillars of Our Mission</h2>
+          <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">{t.pillarsSectionTitle}</h2>
           <p className="text-sm text-[#6B7280]">
-            Focused commitments driving our academic excellence and student success ({pillars.length} pillars).
+            {t.pillarsSectionSubtitle} ({pillars.length} {currentLanguage === 'en' ? 'pillars' : ''})
           </p>
         </div>
 
         {pillars.length === 0 ? (
           <div className="p-8 rounded-3xl neu-inset text-center text-[#6B7280]">
-            <p className="font-bold">No pillars currently listed.</p>
+            <p className="font-bold">{t.noPillarsListed}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -164,23 +169,27 @@ export function GoalsMissionPage({
       <section className="p-8 rounded-3xl neu-card grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
         <div>
           <p className="font-display text-3xl font-extrabold text-[#2563EB]">{slogans.length}+</p>
-          <p className="text-xs font-bold text-[#3D4852] mt-1">Core Mottos</p>
-          <p className="text-[11px] text-[#6B7280]">Daily Inspiration</p>
+          <p className="text-xs font-bold text-[#3D4852] mt-1">
+            {currentLanguage === 'ar' ? 'شعارات أساسية' : currentLanguage === 'ku-badini' ? 'درووشمێن سەرەکی' : currentLanguage === 'ku-sorani' ? 'درووشمە سەرەکییەکان' : 'Core Mottos'}
+          </p>
         </div>
         <div>
           <p className="font-display text-3xl font-extrabold text-[#2563EB]">100%</p>
-          <p className="text-xs font-bold text-[#3D4852] mt-1">Personal Guidance</p>
-          <p className="text-[11px] text-[#6B7280]">Admissions & Visa</p>
+          <p className="text-xs font-bold text-[#3D4852] mt-1">
+            {currentLanguage === 'ar' ? 'إرشاد مخصص' : currentLanguage === 'ku-badini' ? 'رێنماییا تایبەت' : currentLanguage === 'ku-sorani' ? 'ڕێنمایی تایبەت' : 'Personal Guidance'}
+          </p>
         </div>
         <div>
           <p className="font-display text-3xl font-extrabold text-[#2563EB]">Global</p>
-          <p className="text-xs font-bold text-[#3D4852] mt-1">University Network</p>
-          <p className="text-[11px] text-[#6B7280]">Europe, UK & Beyond</p>
+          <p className="text-xs font-bold text-[#3D4852] mt-1">
+            {currentLanguage === 'ar' ? 'شبكة جامعات دولية' : currentLanguage === 'ku-badini' ? 'تۆڕا زانکۆیێن جیهانی' : currentLanguage === 'ku-sorani' ? 'تۆڕی زانکۆ جیهانییەکان' : 'University Network'}
+          </p>
         </div>
         <div>
           <p className="font-display text-3xl font-extrabold text-[#2563EB]">{pillars.length}</p>
-          <p className="text-xs font-bold text-[#3D4852] mt-1">Strategic Pillars</p>
-          <p className="text-[11px] text-[#6B7280]">Actionable Focus</p>
+          <p className="text-xs font-bold text-[#3D4852] mt-1">
+            {currentLanguage === 'ar' ? 'ركائز استراتيجية' : currentLanguage === 'ku-badini' ? 'کۆڵەکێن ستراتیژی' : currentLanguage === 'ku-sorani' ? 'کۆڵەکە سەرەکییەکان' : 'Strategic Pillars'}
+          </p>
         </div>
       </section>
 
@@ -211,9 +220,10 @@ export function GoalsMissionPage({
           }}
           className="px-5 py-2.5 rounded-2xl neu-card text-xs font-bold text-[#6B7280] hover:text-[#2563EB] flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <ArrowUp className="w-4 h-4" /> Back to Top
+          <ArrowUp className="w-4 h-4" /> {t.backToTop.replace('↑ ', '')}
         </button>
       </div>
     </div>
   );
 }
+

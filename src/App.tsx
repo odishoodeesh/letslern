@@ -6,7 +6,8 @@ import { NewsSection } from './components/NewsSection';
 import { AcademicsSection } from './components/AcademicsSection';
 import { Sidebar } from './components/Sidebar';
 import { AdminPanel } from './components/AdminPanel';
-import { NewsItem, AcademicDepartment, Page, PageSection, LanguageOffer, SkillsTrainingModule, LanguageArticle, MissionSlogan, MissionPillar, AboutUsData } from './types';
+import { NewsItem, AcademicDepartment, Page, PageSection, LanguageOffer, SkillsTrainingModule, LanguageArticle, MissionSlogan, MissionPillar, AboutUsData, LanguageCode } from './types';
+import { APP_LANGUAGES, getT } from './lib/translations';
 import { DynamicPageRenderer } from './components/DynamicPageRenderer';
 import { AboutUsPage } from './components/AboutUsPage';
 import { SubjectsLanguagesPage } from './components/SubjectsLanguagesPage';
@@ -18,7 +19,9 @@ import {
   initialArticles, 
   initialSlogans, 
   initialPillars, 
-  initialAboutUsData 
+  initialAboutUsData,
+  initialNews,
+  initialAcademicDepartments
 } from './data/initialData';
 import { 
   fetchInstituteSettings, 
@@ -26,7 +29,9 @@ import {
   fetchPagesData, 
   fetchHomeSectionsData, 
   fetchLanguagesData, 
-  fetchTrainingModulesData 
+  fetchTrainingModulesData,
+  fetchNewsData,
+  fetchAcademicsData
 } from './lib/supabase';
 
 // Sticky LocalStorage state helper to persist all Admin edits and deletions
@@ -75,18 +80,41 @@ export default function App() {
   const [pillars, setPillars] = useStickyState<MissionPillar[]>('ll_pillars', initialPillars);
   const [aboutData, setAboutData] = useStickyState<AboutUsData>('ll_about_data', initialAboutUsData);
 
+  const [newsItems, setNewsItems] = useStickyState<NewsItem[]>('ll_news_items', initialNews);
+  const [academicDepartments, setAcademicDepartments] = useStickyState<AcademicDepartment[]>('ll_academic_departments', initialAcademicDepartments);
+  const [currentLanguage, setCurrentLanguage] = useStickyState<LanguageCode>('ll_app_language', 'en');
+  const [sidebarItems, setSidebarItems] = useStickyState('ll_sidebar_items', [
+    { name: 'Home' },
+    { name: 'News' },
+    { name: 'About' },
+  ]);
+
+  const t = getT(currentLanguage);
+
+  // Update HTML lang when language changes while keeping layout orientation stable on the same side
+  useEffect(() => {
+    const langOpt = APP_LANGUAGES.find(l => l.id === currentLanguage);
+    if (langOpt) {
+      document.documentElement.lang = langOpt.id;
+      // Keep layout direction constant on the same side (no layout flipping)
+      document.documentElement.dir = 'ltr';
+    }
+  }, [currentLanguage]);
+
   // Synchronize initial data with Supabase Database (if present)
   useEffect(() => {
     let isMounted = true;
     async function syncFromSupabase() {
       try {
-        const [settings, about, dbPages, dbHomeSections, dbLanguages, dbTraining] = await Promise.all([
+        const [settings, about, dbPages, dbHomeSections, dbLanguages, dbTraining, dbNews, dbAcademics] = await Promise.all([
           fetchInstituteSettings(),
           fetchAboutUsData(),
           fetchPagesData(),
           fetchHomeSectionsData(),
           fetchLanguagesData(),
-          fetchTrainingModulesData()
+          fetchTrainingModulesData(),
+          fetchNewsData(),
+          fetchAcademicsData()
         ]);
 
         if (!isMounted) return;
@@ -121,6 +149,14 @@ export default function App() {
         if (dbTraining && dbTraining.length > 0) {
           setTrainingModules(dbTraining);
         }
+
+        if (dbNews && dbNews.length > 0) {
+          setNewsItems(dbNews);
+        }
+
+        if (dbAcademics && dbAcademics.length > 0) {
+          setAcademicDepartments(dbAcademics);
+        }
       } catch (err) {
         console.warn('Initial Supabase sync skipped:', err);
       }
@@ -131,6 +167,20 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  // Ensure 'News' exists in sidebarItems
+  useEffect(() => {
+    if (!sidebarItems.some(item => item.name.toLowerCase() === 'news')) {
+      const homeIdx = sidebarItems.findIndex(item => item.name.toLowerCase() === 'home');
+      const newItems = [...sidebarItems];
+      if (homeIdx !== -1) {
+        newItems.splice(homeIdx + 1, 0, { name: 'News' });
+      } else {
+        newItems.unshift({ name: 'News' });
+      }
+      setSidebarItems(newItems);
+    }
+  }, [sidebarItems, setSidebarItems]);
 
   // Auto-migrate previous spelling if present in localStorage
   useEffect(() => {
@@ -147,15 +197,6 @@ export default function App() {
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
-  
-  const [newsItems, setNewsItems] = useStickyState<NewsItem[]>('ll_news_items', []);
-  
-  const [academicDepartments, setAcademicDepartments] = useStickyState<AcademicDepartment[]>('ll_academic_departments', []);
-
-  const [sidebarItems, setSidebarItems] = useStickyState('ll_sidebar_items', [
-    { name: 'Home' },
-    { name: 'About' },
-  ]);
 
   const [pages, setPages] = useStickyState<Page[]>('ll_pages', [
     {
@@ -317,6 +358,8 @@ export default function App() {
         pages={pages} 
         currentPageId={currentPageId} 
         setCurrentPageId={navigateToPage} 
+        currentLanguage={currentLanguage}
+        onSelectLanguage={setCurrentLanguage}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <SchoolHeader 
@@ -339,6 +382,7 @@ export default function App() {
                 bottomTitle={heroBottomTitle}
                 bottomDescription={heroBottomDescription}
                 onNavigate={(pageId) => navigateToPage(pageId)}
+                currentLanguage={currentLanguage}
               />
 
               {/* Core Offerings Overview */}
@@ -346,10 +390,10 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h2 className="font-display text-2xl font-extrabold text-[#3D4852]">
-                      Academic & Language Programs
+                      {t.academicProgramsTitle}
                     </h2>
                     <p className="text-sm text-[#6B7280]">
-                      Explore our certified language courses, career skills, and international guidance.
+                      {t.academicProgramsSubtitle}
                     </p>
                   </div>
                 </div>
@@ -365,18 +409,18 @@ export default function App() {
                         <Languages className="w-6 h-6" />
                       </div>
                       <span className="text-xs font-bold px-2.5 py-1 rounded-full neu-inset text-[#2563EB]">
-                        Curriculum & Training
+                        {t.subjectsCardTag}
                       </span>
                       <h3 className="font-display text-xl sm:text-2xl font-bold text-[#3D4852] group-hover:text-[#2563EB] transition-colors">
-                        Subjects & Language Offerings
+                        {t.subjectsCardTitle}
                       </h3>
                       <p className="text-sm text-[#6B7280] leading-relaxed">
-                        6 accredited languages (English, German, Arabic, Turkish, French, Dutch), specialized exam preparation (IELTS, TOEFL, Goethe, TÖMER), and official translations.
+                        {t.subjectsCardDesc}
                       </p>
                     </div>
 
                     <div className="pt-4 border-t border-[#E0E5EC] flex items-center justify-between text-xs font-bold text-[#2563EB]">
-                      <span>View All Languages & Training</span>
+                      <span>{t.subjectsCardBtn}</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -391,18 +435,18 @@ export default function App() {
                         <Compass className="w-6 h-6" />
                       </div>
                       <span className="text-xs font-bold px-2.5 py-1 rounded-full neu-inset text-[#2563EB]">
-                        Vision & Pathways
+                        {t.goalsCardTag}
                       </span>
                       <h3 className="font-display text-xl sm:text-2xl font-bold text-[#3D4852] group-hover:text-[#2563EB] transition-colors">
-                        Goals & Mission
+                        {t.goalsCardTitle}
                       </h3>
                       <p className="text-sm text-[#6B7280] leading-relaxed">
-                        Study abroad & global university guidance, visa support, skill development, and empowerment under our guiding motto: "Unlock your potential."
+                        {t.goalsCardDesc}
                       </p>
                     </div>
 
                     <div className="pt-4 border-t border-[#E0E5EC] flex items-center justify-between text-xs font-bold text-[#2563EB]">
-                      <span>Discover Our Mission & Guidance</span>
+                      <span>{t.goalsCardBtn}</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -414,18 +458,18 @@ export default function App() {
                 <div className="space-y-2 text-center md:text-left">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full neu-inset text-xs font-bold text-[#2563EB]">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Visit Our Academy in Duhok</span>
+                    <span>{t.contactCardBadge}</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#3D4852]">Have Questions or Ready to Enroll?</h3>
+                  <h3 className="text-xl font-bold text-[#3D4852]">{t.contactCardTitle}</h3>
                   <p className="text-sm text-[#6B7280]">
-                    Reach our admissions advisors by phone or visit our center in Duhok.
+                    {t.contactCardDesc}
                   </p>
                   <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-[#3D4852] pt-1">
                     <span className="flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-[#2563EB]" /> 07500062119 / 07508423979
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-[#2563EB]" /> Duhok, Kurdistan Region
+                      <MapPin className="w-3.5 h-3.5 text-[#2563EB]" /> {t.locationLabel}
                     </span>
                   </div>
                 </div>
@@ -434,12 +478,12 @@ export default function App() {
                   onClick={() => navigateToPage('about')}
                   className="px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors cursor-pointer shrink-0 shadow-sm"
                 >
-                  Contact & Location Details
+                  {t.contactCardBtn}
                 </button>
               </section>
 
-              {newsItems.length > 0 && <NewsSection newsItems={newsItems} />}
-              {academicDepartments.length > 0 && <AcademicsSection academicDepartments={academicDepartments} />}
+              {newsItems.length > 0 && <NewsSection newsItems={newsItems} currentLanguage={currentLanguage} />}
+              {academicDepartments.length > 0 && <AcademicsSection academicDepartments={academicDepartments} currentLanguage={currentLanguage} />}
               
               {homeSections.map((section, hIdx) => (
                 <section key={section.id} className="mt-8 bg-white p-6 sm:p-8 rounded-3xl neu-card relative">
@@ -458,9 +502,9 @@ export default function App() {
                       <table className="w-full text-left">
                         <thead>
                           <tr className="border-b border-[#E0E5EC]">
-                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">Day</th>
-                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">Time</th>
-                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">Activity</th>
+                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">{t.dayCol}</th>
+                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">{t.timeCol}</th>
+                            <th className="p-3 text-xs font-bold uppercase tracking-wider text-[#2563EB]">{t.activityCol}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -489,6 +533,7 @@ export default function App() {
               logoUrl={logoUrl} 
               aboutData={aboutData}
               onBackToHome={() => navigateToPage('home')}
+              currentLanguage={currentLanguage}
             />
           ) : currentPageId === 'subjects-languages' ? (
             <SubjectsLanguagesPage 
@@ -497,6 +542,7 @@ export default function App() {
               articles={articles}
               page={pages.find(p => p.id === 'subjects-languages')}
               onBackToHome={() => navigateToPage('home')}
+              currentLanguage={currentLanguage}
             />
           ) : currentPageId === 'goals-mission' ? (
             <GoalsMissionPage 
@@ -504,6 +550,7 @@ export default function App() {
               pillars={pillars}
               page={pages.find(p => p.id === 'goals-mission')}
               onBackToHome={() => navigateToPage('home')}
+              currentLanguage={currentLanguage}
             />
           ) : currentPageId === 'news' ? (
             <div className="py-6 space-y-6">
@@ -511,9 +558,9 @@ export default function App() {
                 onClick={() => navigateToPage('home')}
                 className="px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer inline-flex items-center gap-2"
               >
-                ← Return to Home
+                {t.backToHome}
               </button>
-              <NewsSection newsItems={newsItems} />
+              <NewsSection newsItems={newsItems} currentLanguage={currentLanguage} />
             </div>
           ) : currentPageId === 'academics' ? (
             <div className="py-6 space-y-6">
@@ -521,14 +568,15 @@ export default function App() {
                 onClick={() => navigateToPage('home')}
                 className="px-4 py-2 rounded-xl neu-card text-xs font-bold text-[#3D4852] hover:text-[#2563EB] cursor-pointer inline-flex items-center gap-2"
               >
-                ← Return to Home
+                {t.backToHome}
               </button>
-              <AcademicsSection academicDepartments={academicDepartments} />
+              <AcademicsSection academicDepartments={academicDepartments} currentLanguage={currentLanguage} />
             </div>
           ) : (
             <DynamicPageRenderer 
               page={pages.find(p => p.id === currentPageId) || { id: currentPageId, name: 'Page', sections: [] }} 
               onBackToHome={() => navigateToPage('home')}
+              currentLanguage={currentLanguage}
             />
           )}
         </main>
